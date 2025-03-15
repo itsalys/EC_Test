@@ -1,0 +1,7 @@
+screeninfo
+speechrecognition
+pyaudio
+imutils
+opencv-python
+# face-recognition
+# facedb
