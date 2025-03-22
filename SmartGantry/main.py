@@ -26,11 +26,7 @@ def main():
                 print("Face not recognized. Please try again.")
         else:
             print("No object detected within 100 cm. Skipping recognition cycle.")
-
-        user_input = input("Press Enter to continue or 'q' to quit: ").strip().lower()
-        if user_input == 'q':
-            print("Exiting program.")
-            break
+            
         time.sleep(1)
 
 if __name__ == "__main__":
