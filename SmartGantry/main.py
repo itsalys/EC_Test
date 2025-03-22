@@ -8,7 +8,7 @@ def main():
         distance = UD.measure_distance()
         print(f"Measured Distance: {distance} cm")
 
-        if UD.is_object_in_range(distance, threshold=100):
+        if UD.is_object_in_range(distance, threshold=20):
             print("Object detected within 100 cm. Starting facial recognition...")
             result = FR.facialRecognition()  # Perform facial recognition
 
