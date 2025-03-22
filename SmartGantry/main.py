@@ -1,12 +1,15 @@
 import Inp_Camera.facialRecognition as FR
 import Inp_Mic.speechRecognition as SR
+import Inp_Ultrasonic.objectDetection as UD
+import time
 
 def main():
     while True:
-        user_input = input("Press 'g' to start facial recognition or 'q' to quit: ").strip().lower()
+        distance = UD.measure_distance()
+        print(f"Measured Distance: {distance} cm")
 
-        if user_input == 'g':
-            print("Trigger received. Initiating facial recognition...")
+        if UD.is_object_in_range(distance, threshold=100):
+            print("Object detected within 100 cm. Starting facial recognition...")
             result = FR.facialRecognition()  # Perform facial recognition
 
             if result:  # Check if a face was recognized
@@ -21,12 +24,14 @@ def main():
                     print("Wake word not detected. Restart the process if necessary.")
             else:
                 print("Face not recognized. Please try again.")
-        
-        elif user_input == 'q':
+        else:
+            print("No object detected within 100 cm. Skipping recognition cycle.")
+
+        user_input = input("Press Enter to continue or 'q' to quit: ").strip().lower()
+        if user_input == 'q':
             print("Exiting program.")
             break
-        else:
-            print("Invalid input. Please press 'g' to start or 'q' to quit.")
+        time.sleep(1)
 
 if __name__ == "__main__":
     main()
