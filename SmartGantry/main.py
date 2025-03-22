@@ -8,7 +8,7 @@ def main():
         distance = UD.measure_distance()
         print(f"Measured Distance: {distance} cm")
 
-        if UD.is_object_in_range(distance, threshold=20):
+        if UD.is_object_in_range(distance, threshold=50):
             print("Object detected within 100 cm. Starting facial recognition...")
             result = FR.facialRecognition()  # Perform facial recognition
 
@@ -20,8 +20,10 @@ def main():
 
                 if speech_detected:
                     print(f"Wake word '{wake_word}' detected. Proceeding with the next step.")
+                    time.sleep(10)
                 else:
                     print("Wake word not detected. Restart the process if necessary.")
+                    time.sleep(5)
             else:
                 print("Face not recognized. Please try again.")
         else:
