@@ -26,8 +26,8 @@ def main():
                 print("Face not recognized. Please try again.")
         else:
             print("No object detected within 100 cm. Skipping recognition cycle.")
-            
-        time.sleep(1)
+
+        time.sleep(5)
 
 if __name__ == "__main__":
     main()
