@@ -52,7 +52,7 @@ def is_object_in_range(distance, threshold=10):
     :return: True if an object is within range, else False.
     """
     if distance == -1:
-        print("Error: No valid measurement received.")
+        print("Object Detection - Error: No valid measurement received.")
         return False
     return distance <= threshold
 
@@ -65,15 +65,15 @@ if __name__ == "__main__":
     try:
         while True:
             distance = measure_distance()
-            print(f"Measured Distance: {distance} cm")
+            print(f"Object Detection - Measured Distance: {distance} cm")
 
             if is_object_in_range(distance, threshold=50):
-                print("? Object Detected in Range!")
+                print("Object Detection - Object Detected in Range!")
             else:
-                print("? No Object Detected.")
+                print("Object Detection - No Object Detected.")
 
             time.sleep(1)  # Wait before next measurement
 
     except KeyboardInterrupt:
-        print("\nMeasurement stopped by user.")
+        print("\nObject Detection - Measurement stopped by user.")
         GPIO.cleanup()
