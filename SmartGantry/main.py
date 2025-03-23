@@ -1,6 +1,7 @@
 import Inp_Camera.facialRecognition as FR
 import Inp_Mic.speechRecognition as SR
 import Inp_Ultrasonic.objectDetection as UD
+import Out_Speaker.audioFeedback as AF
 import time
 import socket
 import json
@@ -24,7 +25,7 @@ response_payload = None  # To store the server's response
 
 def on_message(client, userdata, msg):
     global response_payload
-    print(f"[MQTT] Received message on {msg.topic}")
+    print(f"MQTT - Received message on {msg.topic}")
     try:
         response_payload = json.loads(msg.payload.decode())
     except json.JSONDecodeError:
@@ -41,26 +42,26 @@ def main():
 
     while True:
         distance = UD.measure_distance()
-        print(f"Measured Distance: {distance} cm")
+        print(f"Main - Measured Distance: {distance} cm")
 
         if UD.is_object_in_range(distance, threshold=100):
-            print("Object detected within 100 cm. Starting facial recognition...")
+            print("Main - Object detected within 100 cm. Starting facial recognition...")
             result = FR.facialRecognition()
 
             if result:
                 wake_word = result["name"]
                 user_id = result["id"]
-                print(f"User recognized: {wake_word} (ID: {user_id}). Initiating speech recognition...")
+                print(f"Main - User recognized: {wake_word} (ID: {user_id}). Initiating speech recognition...")
 
                 speech_detected = SR.speechRecognition(wake_word)
 
                 if speech_detected:
-                    print(f"Wake word '{wake_word}' detected. Sending MQTT clock request...")
+                    print(f"Main - Wake word '{wake_word}' detected. Sending MQTT clock request...")
                     response_payload = None
 
                     request_payload = {
                         "employee_id": user_id,
-                        "action": "clock_in",  # Could be dynamic
+                        "action": "clock_in",  # Can be changed dynamically
                         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                     }
 
@@ -71,18 +72,34 @@ def main():
                         time.sleep(0.1)
 
                     if response_payload:
-                        if response_payload.get("status") == "success":
+                        status = response_payload.get("status")
+
+                        if status == "success":
                             print("[Access Granted] Clock-in confirmed.")
+                            AF.play_success_message()
+
+                        elif status == "denied":
+                            print(f"[Access Denied] {response_payload.get('message', 'Access denied.')}")
+                            AF.play_denied_message()
+
+                        elif status == "error":
+                            print(f"[Error] {response_payload.get('message', 'An error occurred during verification.')}")
+                            AF.play_error_message()
+
                         else:
-                            print(f"[Access Denied] {response_payload.get('message')}")
+                            print(f"[Error] MQTT - Unexpected status: {status}")
+                            AF.play_error_message()
                     else:
-                        print("[MQTT] No response received. Access denied.")
+                        print("[Error] MQTT - No response received. Access denied.")
+                        AF.play_error_message()
                 else:
-                    print("Wake word not detected. Restart the process if necessary.")
+                    print("[Access Denied] Wake word not recognised. Please try again.")
+                    AF.play_denied_message()
             else:
-                print("Face not recognized. Please try again.")
+                print("[Access Denied] Face not recognized. Please try again.")
+                AF.play_denied_message()
         else:
-            print("No object detected within 100 cm. Skipping recognition cycle.")
+            print("Main - No object detected within 100 cm. Skipping recognition cycle.")
 
         time.sleep(2)
 
