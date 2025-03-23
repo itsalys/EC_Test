@@ -3,9 +3,9 @@ import wave
 import time
 
 # Define file paths for the audio messages
-SUCCESS_AUDIO = "success.wav"  # Replace with your actual success message file
-DENIED_AUDIO = "error.wav"    # Replace with your actual denied message file
-ERROR_AUDIO = "error.wav"      # Replace with your actual error message file
+SUCCESS_AUDIO = "Out_Speaker/success.wav"  # Replace with your actual success message file
+DENIED_AUDIO = "Out_Speaker/error.wav"    # Replace with your actual denied message file
+ERROR_AUDIO = "Out_Speaker/error.wav"      # Replace with your actual error message file
 
 def play_audio(file_path):
     """Plays the given audio file."""
