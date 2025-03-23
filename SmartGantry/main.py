@@ -17,8 +17,8 @@ KEEPALIVE = config["keepalive"]
 
 # === MQTT Topics ===
 DEVICE_ID = socket.gethostname()
-MQTT_TOPIC_REQUEST = f"smartgantry/{DEVICE_ID}/clock_request"
-MQTT_TOPIC_RESPONSE = f"smartgantry/{DEVICE_ID}/clock_response"
+MQTT_TOPIC_REQUEST = f"smartgantry/{DEVICE_ID}/clock_in_request"
+MQTT_TOPIC_RESPONSE = f"smartgantry/{DEVICE_ID}/clock_in_response"
 
 # === MQTT Setup ===
 response_payload = None  # To store the server's response

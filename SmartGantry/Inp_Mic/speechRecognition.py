@@ -13,7 +13,7 @@ def speechRecognition(wake_word):
     with sr.Microphone() as source:
         r.adjust_for_ambient_noise(source)  # Adapt to ambient noise
         os.system('clear') 
-        print("Speech Recognition - Listening for wake word...")
+        print(f"Speech Recognition - Listening for wake word: {wake_word} ...")
         audio = r.listen(source)  # Capture audio
 
     # Recognize speech using Google Speech Recognition
