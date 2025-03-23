@@ -20,16 +20,16 @@ def main():
 
                 if speech_detected:
                     print(f"Wake word '{wake_word}' detected. Proceeding with the next step.")
-                    time.sleep(10)
+                    time.sleep(3)
                 else:
                     print("Wake word not detected. Restart the process if necessary.")
-                    time.sleep(5)
+
             else:
                 print("Face not recognized. Please try again.")
         else:
             print("No object detected within 100 cm. Skipping recognition cycle.")
 
-        time.sleep(5)
+        time.sleep(2)
 
 if __name__ == "__main__":
     main()
