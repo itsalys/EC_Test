@@ -1,5 +1,6 @@
 import socket
 
+# get hostname
 hostname = socket.gethostname()
 
 # Get actual local IP address (excluding loopback)
