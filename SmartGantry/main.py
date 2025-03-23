@@ -14,14 +14,22 @@ with open("config.json") as f:
 BROKER = config["broker"]
 PORT = config["port"]
 KEEPALIVE = config["keepalive"]
+MODE = config["mode"].lower()  # either "entry" or "exit"
 
-# === MQTT Topics ===
+# === MQTT Topics Based on Mode ===
 DEVICE_ID = socket.gethostname()
-MQTT_TOPIC_REQUEST = f"smartgantry/{DEVICE_ID}/clock_in_request"
-MQTT_TOPIC_RESPONSE = f"smartgantry/{DEVICE_ID}/clock_in_response"
+if MODE == "entry":
+    ACTION = "clock_in"
+elif MODE == "exit":
+    ACTION = "clock_out"
+else:
+    raise ValueError("Invalid mode in config.json. Use 'entry' or 'exit'.")
+
+MQTT_TOPIC_REQUEST = f"smartgantry/{DEVICE_ID}/{ACTION}_request"
+MQTT_TOPIC_RESPONSE = f"smartgantry/{DEVICE_ID}/{ACTION}_response"
 
 # === MQTT Setup ===
-response_payload = None  # To store the server's response
+response_payload = None
 
 def on_message(client, userdata, msg):
     global response_payload
@@ -56,18 +64,18 @@ def main():
                 speech_detected = SR.speechRecognition(wake_word)
 
                 if speech_detected:
-                    print(f"Main - Wake word '{wake_word}' detected. Sending MQTT clock request...")
+                    print(f"Main - Wake word '{wake_word}' detected. Sending MQTT {ACTION} request...")
                     response_payload = None
 
                     request_payload = {
                         "employee_id": user_id,
-                        "action": "clock_in",  # Can be changed dynamically
+                        "action": ACTION,
                         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                     }
 
                     client.publish(MQTT_TOPIC_REQUEST, json.dumps(request_payload))
 
-                    timeout = time.time() + 5  # Wait max 5 seconds for reply
+                    timeout = time.time() + 5
                     while time.time() < timeout and response_payload is None:
                         time.sleep(0.1)
 
@@ -75,11 +83,11 @@ def main():
                         status = response_payload.get("status")
 
                         if status == "success":
-                            print("[Access Granted] Clock-in confirmed.")
+                            print(f"[Access Granted] {ACTION.replace('_', ' ').capitalize()} confirmed.")
                             AF.play_success_message()
 
                         elif status == "denied":
-                            print(f"[Access Denied] {response_payload.get('message', 'Access denied.')}")
+                            print(f"[Access Denied] {response_payload.get('message', 'Access denied.')} Please try again.")
                             AF.play_denied_message()
 
                         elif status == "error":
@@ -96,7 +104,7 @@ def main():
                     print("[Access Denied] Wake word not recognised. Please try again.")
                     AF.play_denied_message()
             else:
-                print("[Access Denied] Face not recognized. Please try again.")
+                print("[Access Denied] Face not recognised. Please try again.")
                 AF.play_denied_message()
         else:
             print("Main - No object detected within 100 cm. Skipping recognition cycle.")
