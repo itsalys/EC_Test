@@ -14,7 +14,7 @@ def speechRecognition(wake_word):
         r.adjust_for_ambient_noise(source)  # Adapt to ambient noise
         os.system('clear') 
         print(f"Speech Recognition - Listening for wake word: {wake_word} ...")
-        audio = r.listen(source, timeout=5, phrase_time_limit=3)
+        audio = r.listen(source, timeout=5, phrase_time_limit=5)
 
 
     # Recognize speech using Google Speech Recognition
