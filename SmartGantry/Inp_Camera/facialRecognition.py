@@ -15,7 +15,7 @@ def add_face(id, name, img_path):
     :param img_path: Path to the image file
     :return: Face ID of the added face
     """
-    face_id = db.add(id, img=img_path)
+    face_id = db.add(name, img=img_path, employee_id=id)
     # db.update(id=id, name=name)
     print(f"Facial Recognition - Added ID: {id}, Name: {name}, face_ID: {face_id}")
     return face_id
