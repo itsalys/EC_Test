@@ -17,7 +17,7 @@ def add_face(id, name, img_path):
     """
     face_id = db.add(name, img=img_path, employee_id=id)
     # db.update(id=id, name=name)
-    print(f"Facial Recognition - Added ID: {id}, Name: {name}, face_ID: {face_id}")
+    print(f"Facial Recognition - Added employee_id: {id}, name: {name}, face_id: {face_id}")
     return face_id
 
 def recognize_face(img_path):
@@ -27,9 +27,9 @@ def recognize_face(img_path):
     :param img_path: Path to the image file to recognize
     :return: Dictionary containing recognized person's ID and name, or None if not recognized
     """
-    result = db.recognize(img=img_path, include=["id", "name"])
+    result = db.recognize(img=img_path, include=["employee_id", "name"])
     if result:
-        recognized_data = {"id": result["id"], "name": result["name"]}
+        recognized_data = {"id": result["employee_id"], "name": result["name"]}
         print(f"Facial Recognition - Recognized: {recognized_data}")
         return recognized_data
     else:
