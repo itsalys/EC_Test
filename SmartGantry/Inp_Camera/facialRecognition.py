@@ -83,6 +83,6 @@ def facialRecognition(save_path="captured_face.jpg"):
 
 # Run the capture and recognition process when this script is executed
 if __name__ == "__main__":
-    add_face(id="-1", name="test", img_path="Inp_Camera/testID.png")
+    add_face(id="1", name="Rondon Alyssa", img_path="Inp_Camera/testID.png")
     result = facialRecognition()
     print("Facial Recognition - Recognition Result:", result)
