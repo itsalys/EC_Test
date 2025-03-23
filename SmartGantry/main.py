@@ -7,7 +7,7 @@ import json
 import paho.mqtt.client as mqtt
 
 # === Load MQTT Configuration from JSON File ===
-with open("mqtt_config.json") as f:
+with open("config.json") as f:
     config = json.load(f)
 
 BROKER = config["broker"]
