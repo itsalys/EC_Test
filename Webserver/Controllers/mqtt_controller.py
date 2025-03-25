@@ -1,5 +1,5 @@
 import base64
-from Utils.mqtt_client import publish_message, register_mqtt_callback
+from Utils.mqtt_client import publish_message, register_mqtt_callback, reconnect_subscriber
 import threading
 
 # === ADD EMPLOYEE MQTT ===
@@ -19,6 +19,10 @@ _device_response_cache = {}
 _lock = threading.Lock()
 
 def trigger_device_scan():
+    with _lock:
+        _device_response_cache.clear()
+
+    reconnect_subscriber()  # <- force MQTT reconnect to ignore old messages
     publish_message("app/device_management/request", {})
 
 def _device_response_handler(topic, payload):

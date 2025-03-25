@@ -62,5 +62,24 @@ def start_mqtt_subscriber():
     thread = threading.Thread(target=loop, daemon=True)
     thread.start()
 
+def reconnect_subscriber():
+    """Forcefully disconnect and reconnect the subscriber to ignore old messages."""
+    try:
+        _subscriber_client.disconnect()
+        print("MQTT subscriber manually disconnected for fresh scan.")
+    except Exception as e:
+        print(f"Error during MQTT subscriber disconnect: {e}")
+
+    # Reconnect in a short thread
+    def reconnect():
+        try:
+            _subscriber_client.reconnect()
+            print("MQTT subscriber reconnected.")
+        except Exception as e:
+            print(f"MQTT subscriber reconnect failed: {e}")
+
+    threading.Thread(target=reconnect, daemon=True).start()
+
+
 # Initialise on import
 start_mqtt_subscriber()
