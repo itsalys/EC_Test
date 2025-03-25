@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Device Management</h2>
+
+    <button class="btn btn-primary mb-3" id="refreshDevicesBtn">Refresh Devices</button>
+    <div class="text-muted mb-2" id="lastRefreshed">Last refreshed: --</div>
+
+    <div id="scanningIndicator" class="alert alert-info" style="display: none;">
+        Scanning for devices... please wait.
+    </div>
+
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Hostname</th>
+                <th>IP Address</th>
+                <th>Mode</th>
+            </tr>
+        </thead>
+        <tbody id="device-table">
+            <tr>
+                <td colspan="3" class="text-center text-muted">No devices loaded.</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    let token = localStorage.getItem("token");
+
+    if (!token) {
+        window.location.href = "/auth/admin/login";
+        return;
+    }
+
+    token = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+    const refreshBtn = document.getElementById("refreshDevicesBtn");
+    const tableBody = document.getElementById("device-table");
+    const scanningIndicator = document.getElementById("scanningIndicator");
+    const lastRefreshed = document.getElementById("lastRefreshed");
+
+    function scanAndLoadDevices() {
+        scanningIndicator.style.display = "block";
+        tableBody.innerHTML = `<tr><td colspan="3" class="text-center text-info">Waiting for devices to respond...</td></tr>`;
+        lastRefreshed.innerText = "Last refreshed: --";
+
+        fetch("/devices/trigger", {
+            method: "POST",
+            headers: {
+                "Authorization": token,
+                "Content-Type": "application/json"
+            }
+        });
+
+        setTimeout(() => {
+            fetch("/devices/", {
+                method: "GET",
+                headers: {
+                    "Authorization": token,
+                    "Content-Type": "application/json"
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                tableBody.innerHTML = "";
+                scanningIndicator.style.display = "none";
+
+                if (data.error || !data.devices || data.devices.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">${data.error || "No devices found."}</td></tr>`;
+                    return;
+                }
+
+                data.devices.forEach(device => {
+                    let row = `<tr>
+                        <td>${device.hostname}</td>
+                        <td>${device.ip_address}</td>
+                        <td>${device.mode}</td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+
+                lastRefreshed.innerText = "Last refreshed: " + new Date().toLocaleTimeString();
+            })
+            .catch(err => {
+                scanningIndicator.style.display = "none";
+                tableBody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">Failed to fetch device list.</td></tr>`;
+            });
+        }, 3000);
+    }
+
+    refreshBtn.addEventListener("click", scanAndLoadDevices);
+    scanAndLoadDevices(); // Initial auto-scan
+});
+</script>
+{% endblock %}

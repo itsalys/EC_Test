@@ -1,5 +1,8 @@
-from Utils.mqtt_client import publish_message
 import base64
+from Utils.mqtt_client import publish_message, register_mqtt_callback
+import threading
+
+# === ADD EMPLOYEE MQTT ===
 
 def publish_new_employee(employee):
     payload = {
@@ -9,4 +12,26 @@ def publish_new_employee(employee):
     }
     publish_message("app/add_employee/request", payload)
 
-# Add more topic-specific functions as needed
+
+# === DEVICE MANAGEMENT MQTT ===
+
+_device_response_cache = {}
+_lock = threading.Lock()
+
+def trigger_device_scan():
+    publish_message("app/device_management/request", {})
+
+def _device_response_handler(topic, payload):
+    hostname = payload.get("hostname")
+    if hostname:
+        with _lock:
+            _device_response_cache[hostname] = payload
+        print(f"Cached response from {hostname}")
+
+register_mqtt_callback("app/device_management/response/+", _device_response_handler)
+
+def request_device_list():
+    with _lock:
+        if not _device_response_cache:
+            return None, "No response received from devices."
+        return list(_device_response_cache.values()), None
