@@ -6,11 +6,8 @@ devices_bp = Blueprint("devices", __name__)
 
 @devices_bp.route("/list", methods=["GET"])
 def device_list_page():
-    admin, error = verify_token("admin")
-    if error:
-        return error
-
     return render_template("device_management.html", role="admin")
+
 
 @devices_bp.route("/", methods=["GET"])
 def get_device_data():
