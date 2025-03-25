@@ -12,6 +12,7 @@ MQTT_KEEPALIVE = int(os.getenv("MQTT_KEEPALIVE", 60))
 # Callback registry
 _topic_callbacks = {}
 _subscriber_client = mqtt.Client()
+_reconnect_event = threading.Event()
 
 def publish_message(topic, payload):
     """Publish a JSON message to a given MQTT topic."""
@@ -34,8 +35,10 @@ def _on_connect(client, userdata, flags, rc):
         for topic in _topic_callbacks.keys():
             client.subscribe(topic)
             print(f"Subscribed to {topic}")
+        _reconnect_event.set()  # ✅ Signal reconnection success
     else:
         print(f"MQTT connection failed with code {rc}")
+        _reconnect_event.clear()
 
 def _on_message(client, userdata, msg):
     for pattern, callback in _topic_callbacks.items():
@@ -63,23 +66,22 @@ def start_mqtt_subscriber():
     thread.start()
 
 def reconnect_subscriber():
-    """Forcefully disconnect and reconnect the subscriber to ignore old messages."""
     try:
+        print("Manually disconnecting MQTT subscriber")
+        _reconnect_event.clear()
         _subscriber_client.disconnect()
-        print("MQTT subscriber manually disconnected for fresh scan.")
+        _subscriber_client.loop_stop()
+
+        print("Reconnecting MQTT subscriber...")
+        _subscriber_client.connect(MQTT_BROKER, MQTT_PORT, MQTT_KEEPALIVE)
+        _subscriber_client.loop_start()
+
+        if not _reconnect_event.wait(timeout=3):  # ✅ Wait max 3s
+            print("Timeout: MQTT subscriber failed to reconnect in time.")
+        else:
+            print("✅ Reconnection confirmed.")
     except Exception as e:
-        print(f"Error during MQTT subscriber disconnect: {e}")
-
-    # Reconnect in a short thread
-    def reconnect():
-        try:
-            _subscriber_client.reconnect()
-            print("MQTT subscriber reconnected.")
-        except Exception as e:
-            print(f"MQTT subscriber reconnect failed: {e}")
-
-    threading.Thread(target=reconnect, daemon=True).start()
-
+        print(f"MQTT reconnect error: {e}")
 
 # Initialise on import
 start_mqtt_subscriber()

@@ -22,8 +22,9 @@ def trigger_device_scan():
     with _lock:
         _device_response_cache.clear()
 
-    reconnect_subscriber()  # <- force MQTT reconnect to ignore old messages
+    reconnect_subscriber()  # Blocks until reconnected or timeout
     publish_message("app/device_management/request", {})
+
 
 def _device_response_handler(topic, payload):
     hostname = payload.get("hostname")
