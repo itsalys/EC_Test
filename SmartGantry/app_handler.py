@@ -1,159 +1,101 @@
 import json
-import base64
 import os
+import base64
 import socket
 import paho.mqtt.client as mqtt
 from Inp_Camera.facialRecognition import add_face
 
-import subprocess
-
-def restart_service(service_name):
-    try:
-        subprocess.run(["sudo", "systemctl", "restart", service_name], check=True)
-        print(f"✅ Service '{service_name}' restarted successfully.")
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to restart service '{service_name}':", e)
-
-
-# === Load config.json ===
 CONFIG_FILE = "config.json"
-
-if not os.path.exists(CONFIG_FILE):
-    raise FileNotFoundError(f"Missing {CONFIG_FILE}")
 
 with open(CONFIG_FILE, "r") as f:
     config = json.load(f)
 
-MQTT_BROKER = config.get("broker", "localhost")
-MQTT_PORT = config.get("port", 1883)
-MQTT_KEEPALIVE = config.get("keepalive", 60)
-MODE = config.get("mode", "unknown")  # 'entry' or 'exit'
+MQTT_BROKER = config["broker"]
+MQTT_PORT = config["port"]
+MQTT_KEEPALIVE = config["keepalive"]
+MODE = config.get("mode", "unknown")
 
-# === MQTT Topic → Handler mapping ===
 TOPIC_HANDLERS = {
     "app/add_employee/request": "handle_add_employee",
     "app/device_management/request": "handle_device_info_request",
     f"app/update_device/{socket.gethostname()}": "handle_mode_update"
 }
 
-# === Topic Handlers ===
-
 def handle_add_employee(payload):
-    """
-    Handles new employee face registration from MQTT message.
-    """
+    employee_id = payload.get("employee_id")
+    full_name = payload.get("full_name")
+    profile_pic_b64 = payload.get("profile_pic")
+
+    if not all([employee_id, full_name, profile_pic_b64]):
+        return
+
+    os.makedirs("temp", exist_ok=True)
+    img_path = f"temp/{employee_id}_face.jpg"
+
+    with open(img_path, "wb") as f:
+        f.write(base64.b64decode(profile_pic_b64))
+
+    add_face(id=str(employee_id), name=full_name, img_path=img_path)
+
+    os.remove(img_path)
+
+def handle_device_info_request(_):
+    hostname = socket.gethostname()
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        employee_id = payload.get("employee_id")
-        full_name = payload.get("full_name")
-        profile_pic_b64 = payload.get("profile_pic")
-
-        if not all([employee_id, full_name, profile_pic_b64]):
-            print("Incomplete payload received. Skipping.")
-            return
-
-        os.makedirs("temp", exist_ok=True)
-        img_path = f"temp/{employee_id}_face.jpg"
-
-        # Save image temporarily
-        with open(img_path, "wb") as f:
-            f.write(base64.b64decode(profile_pic_b64))
-
-        # Add to FaceDB
-        add_face(id=str(employee_id), name=full_name, img_path=img_path)
-
+        s.connect(("8.8.8.8", 80))
+        ip_address = s.getsockname()[0]
+    except:
+        ip_address = "Unknown"
     finally:
-        # Clean up
-        if os.path.exists(img_path):
-            os.remove(img_path)
-            print(f"Deleted temp image: {img_path}")
+        s.close()
 
-def handle_device_info_request(payload):
-    try:
-        hostname = socket.gethostname()
+    device_info = {
+        "hostname": hostname,
+        "ip_address": ip_address,
+        "mode": MODE
+    }
 
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            s.connect(("8.8.8.8", 80))
-            ip_address = s.getsockname()[0]
-        except Exception:
-            ip_address = "Unable to detect IP"
-        finally:
-            s.close()
-
-        device_info = {
-            "hostname": hostname,
-            "ip_address": ip_address,
-            "mode": MODE
-        }
-
-        response_topic = f"app/device_management/response/{hostname}"
-        print(f"Publishing device info to topic: {response_topic}")
-        client.publish(response_topic, json.dumps(device_info))
-
-    except Exception as e:
-        print(f"Failed to generate or send device info: {e}")
+    response_topic = f"app/device_management/response/{hostname}"
+    client.publish(response_topic, json.dumps(device_info))
 
 def handle_mode_update(payload):
-    global MODE
-    mode = payload.get("mode")
-    if mode not in ["entry", "exit"]:
-        print(f"Invalid mode: {mode}")
+    new_mode = payload.get("mode")
+    if new_mode not in ["entry", "exit"]:
         return
 
-    config_path = "config.json"
-    with open(config_path, "r") as f:
+    with open(CONFIG_FILE, "r+") as f:
         config = json.load(f)
-
-    config["mode"] = mode
-    with open(config_path, "w") as f:
+        config["mode"] = new_mode
+        f.seek(0)
         json.dump(config, f, indent=4)
+        f.truncate()
 
-    MODE = mode
-    print(f"Device mode updated to: {MODE}")
-
-    # restart_service("face-recognition.service")
-    # print(f"Service restarted - ")
-
-
-# === Dispatcher ===
+    hostname = socket.gethostname()
+    confirm_topic = f"app/update_device/confirm/{hostname}"
+    client.publish(confirm_topic, json.dumps({"status": "updated"}))
 
 def dispatch(topic, payload):
-    handler_name = TOPIC_HANDLERS.get(topic)
-    if not handler_name:
-        print(f"No handler registered for topic: {topic}")
-        return
-
-    handler_func = globals().get(handler_name)
-    if callable(handler_func):
-        handler_func(payload)
-    else:
-        print(f"Handler function '{handler_name}' not found.")
-
-# === MQTT Callbacks ===
+    for pattern in TOPIC_HANDLERS:
+        if mqtt.topic_matches_sub(pattern, topic):
+            handler = globals().get(TOPIC_HANDLERS[pattern])
+            if callable(handler):
+                handler(payload)
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        print("Connected to MQTT Broker")
         for topic in TOPIC_HANDLERS:
             client.subscribe(topic)
-            print(f"Subscribed to topic: {topic}")
-    else:
-        print(f"Connection failed with return code: {rc}")
 
 def on_message(client, userdata, msg):
-    print(f"Message received on topic: {msg.topic}")
     try:
         payload = json.loads(msg.payload.decode("utf-8"))
         dispatch(msg.topic, payload)
-    except Exception as e:
-        print(f"Error processing message: {e}")
-
-# === MQTT Client Setup ===
+    except:
+        pass
 
 client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
-
-print(f"Connecting to MQTT broker at {MQTT_BROKER}:{MQTT_PORT}...")
 client.connect(MQTT_BROKER, MQTT_PORT, MQTT_KEEPALIVE)
 client.loop_forever()

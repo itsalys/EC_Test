@@ -1,8 +1,15 @@
 import base64
-from Utils.mqtt_client import publish_message, register_mqtt_callback, reconnect_subscriber
 import threading
+import time
+from Utils.mqtt_client import (
+    publish_message,
+    register_mqtt_callback,
+    reconnect_subscriber
+)
 
-# === ADD EMPLOYEE MQTT ===
+_device_response_cache = {}
+_confirmation_flags = {}
+_lock = threading.Lock()
 
 def publish_new_employee(employee):
     payload = {
@@ -12,37 +19,43 @@ def publish_new_employee(employee):
     }
     publish_message("app/add_employee/request", payload)
 
-
-# === DEVICE MANAGEMENT MQTT ===
-
-_device_response_cache = {}
-_lock = threading.Lock()
-
 def trigger_device_scan():
     with _lock:
         _device_response_cache.clear()
-
-    reconnect_subscriber()  # Blocks until reconnected or timeout
+    reconnect_subscriber()
     publish_message("app/device_management/request", {})
-
 
 def _device_response_handler(topic, payload):
     hostname = payload.get("hostname")
     if hostname:
         with _lock:
             _device_response_cache[hostname] = payload
-        print(f"Cached response from {hostname}")
 
 register_mqtt_callback("app/device_management/response/+", _device_response_handler)
 
 def request_device_list():
     with _lock:
-        print(f"🔍 Cache size: {len(_device_response_cache)}")
         if not _device_response_cache:
             return None, "No response received from devices."
         return list(_device_response_cache.values()), None
 
-def publish_update_device_mode(hostname, mode):
-    payload = {"mode": mode}
+def publish_device_mode_update(hostname, mode):
     topic = f"app/update_device/{hostname}"
+    payload = {"mode": mode}
     publish_message(topic, payload)
+
+def _device_mode_confirm_handler(topic, payload):
+    hostname = topic.split("/")[-1]
+    with _lock:
+        _confirmation_flags[hostname] = True
+
+register_mqtt_callback("app/update_device/confirm/+", _device_mode_confirm_handler)
+
+def wait_for_mode_confirmation(hostname, timeout=3):
+    start = time.time()
+    while time.time() - start < timeout:
+        with _lock:
+            if _confirmation_flags.pop(hostname, None):
+                return True
+        time.sleep(0.2)
+    return False
