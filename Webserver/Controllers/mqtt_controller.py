@@ -44,5 +44,5 @@ def request_device_list():
 
 def publish_update_device_mode(hostname, mode):
     payload = {"mode": mode}
-    topic = f"app/update_device/{hostname}"
+    topic = f"app/update_device/{hostname}/request"
     publish_message(topic, payload)

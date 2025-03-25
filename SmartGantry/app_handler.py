@@ -96,23 +96,32 @@ def handle_device_info_request(payload):
 def handle_mode_update(payload):
     global MODE
     mode = payload.get("mode")
+    hostname = socket.gethostname()
+
+    response_topic = f"app/update_device/{hostname}/response"
+    
     if mode not in ["entry", "exit"]:
         print(f"Invalid mode: {mode}")
+        client.publish(response_topic, json.dumps({"status": "error", "message": "Invalid mode"}))
         return
 
     config_path = "config.json"
-    with open(config_path, "r") as f:
-        config = json.load(f)
+    try:
+        with open(config_path, "r") as f:
+            config = json.load(f)
 
-    config["mode"] = mode
-    with open(config_path, "w") as f:
-        json.dump(config, f, indent=4)
+        config["mode"] = mode
+        with open(config_path, "w") as f:
+            json.dump(config, f, indent=4)
 
-    MODE = mode
-    print(f"Device mode updated to: {MODE}")
+        MODE = mode
+        print(f"Device mode updated to: {MODE}")
 
-    # restart_service("face-recognition.service")
-    # print(f"Service restarted - ")
+        # restart_service("face-recognition.service")
+        client.publish(response_topic, json.dumps({"status": "success", "message": f"Mode changed to {mode}"}))
+    except Exception as e:
+        print(f"Failed to update mode: {e}")
+        client.publish(response_topic, json.dumps({"status": "error", "message": str(e)}))
 
 
 # === Dispatcher ===

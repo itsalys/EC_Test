@@ -27,6 +27,25 @@
     </table>
 </div>
 
+<!-- Modal for update feedback -->
+<div class="modal fade" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="updateModalLabel">Updating Device</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        Sending update request...
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const token = localStorage.getItem("token");
@@ -60,6 +79,10 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     function updateDeviceMode(hostname, newMode) {
+        const modal = new bootstrap.Modal(document.getElementById("updateModal"));
+        document.getElementById("modalBody").innerText = `Updating device \"${hostname}\" to mode \"${newMode}\"...`;
+        modal.show();
+
         fetch(`/devices/update_mode`, {
             method: "POST",
             headers: {
@@ -71,13 +94,35 @@ document.addEventListener("DOMContentLoaded", function () {
         .then(res => res.json())
         .then(data => {
             if (data.error) {
-                alert("Failed to update mode: " + data.error);
-            } else {
-                console.log("Mode updated successfully");
+                document.getElementById("modalBody").innerText = `Error: ${data.error}`;
+                return;
             }
+
+            const responseTopic = `app/update_device/${hostname}/response`;
+            const mqttClient = mqtt.connect("ws://localhost:9001");
+
+            mqttClient.on("connect", () => {
+                mqttClient.subscribe(responseTopic);
+            });
+
+            mqttClient.on("message", (topic, message) => {
+                if (topic === responseTopic) {
+                    const resp = JSON.parse(message.toString());
+                    document.getElementById("modalBody").innerText =
+                        resp.status === "success"
+                            ? `Success: ${resp.message}`
+                            : `Error: ${resp.message}`;
+                    mqttClient.end();
+                }
+            });
+
+            setTimeout(() => {
+                document.getElementById("modalBody").innerText = "Timeout: No response from device.";
+                mqttClient.end();
+            }, 5000);
         })
         .catch(err => {
-            alert("Failed to send update request");
+            document.getElementById("modalBody").innerText = "Failed to send update request";
         });
     }
 
