@@ -33,7 +33,7 @@ MODE = config.get("mode", "unknown")  # 'entry' or 'exit'
 TOPIC_HANDLERS = {
     "app/add_employee/request": "handle_add_employee",
     "app/device_management/request": "handle_device_info_request",
-    f"app/update_device/{socket.gethostname()}": "handle_mode_update"
+    f"app/update_device/{socket.gethostname()}/request": "handle_mode_update"
 }
 
 # === Topic Handlers ===
