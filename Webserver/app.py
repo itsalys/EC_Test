@@ -5,6 +5,7 @@ from Routes import register_routes
 from dotenv import load_dotenv
 import os
 from flask_cors import CORS
+from Controllers.mqtt_controller import initialise_device_mqtt_handlers
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True, expose_headers=["Authorization"], allow_headers=["Authorization", "Content-Type"])  # ✅ Allow Authorization header
@@ -26,6 +27,8 @@ init_db(app)
 
 # Register routes
 register_routes(app)
+
+initialise_device_mqtt_handlers()
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)

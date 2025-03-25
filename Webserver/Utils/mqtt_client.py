@@ -1,87 +1,56 @@
-# Utils/mqtt_client.py
-
-import os
-import json
-import threading
 import paho.mqtt.client as mqtt
+import json
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
 MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
 MQTT_KEEPALIVE = int(os.getenv("MQTT_KEEPALIVE", 60))
+MQTT_CLIENT_ID = os.getenv("MQTT_CLIENT_ID", "web_app")
 
-# Callback registry
-_topic_callbacks = {}
-_subscriber_client = mqtt.Client()
-_reconnect_event = threading.Event()
+client = mqtt.Client(MQTT_CLIENT_ID)
+callbacks = {}
 
-def publish_message(topic, payload):
-    """Publish a JSON message to a given MQTT topic."""
+
+def on_connect(client, userdata, flags, rc):
+    print(f"✅ Connected to MQTT broker with result code {rc}")
+    for topic in callbacks:
+        client.subscribe(topic)
+        print(f"📡 Subscribed to topic: {topic}")
+
+
+def on_message(client, userdata, msg):
+    topic = msg.topic
+    payload = msg.payload.decode("utf-8")
     try:
-        pub_client = mqtt.Client()
-        pub_client.connect(MQTT_BROKER, MQTT_PORT, MQTT_KEEPALIVE)
-        pub_client.publish(topic, json.dumps(payload))
-        pub_client.disconnect()
-    except Exception as e:
-        print(f"MQTT Publish Error: {e}")
+        data = json.loads(payload)
+    except json.JSONDecodeError:
+        print(f"❌ Failed to decode JSON from topic {topic}: {payload}")
+        return
 
-def register_mqtt_callback(topic_pattern, callback):
-    """Register a callback to be invoked when a message is received on a specific topic."""
-    _topic_callbacks[topic_pattern] = callback
-    _subscriber_client.subscribe(topic_pattern)
-
-def _on_connect(client, userdata, flags, rc):
-    if rc == 0:
-        print("MQTT client connected")
-        for topic in _topic_callbacks.keys():
-            client.subscribe(topic)
-            print(f"Subscribed to {topic}")
-        _reconnect_event.set()  # ✅ Signal reconnection success
-    else:
-        print(f"MQTT connection failed with code {rc}")
-        _reconnect_event.clear()
-
-def _on_message(client, userdata, msg):
-    for pattern, callback in _topic_callbacks.items():
-        if mqtt.topic_matches_sub(pattern, msg.topic):
-            try:
-                payload = json.loads(msg.payload.decode("utf-8"))
-                callback(msg.topic, payload)
-            except Exception as e:
-                print(f"Error handling MQTT message on {msg.topic}: {e}")
+    for pattern, callback in callbacks.items():
+        if mqtt.topic_matches_sub(pattern, topic):
+            callback(topic, data)
             break
 
-def start_mqtt_subscriber():
-    """Start background MQTT subscriber loop."""
-    _subscriber_client.on_connect = _on_connect
-    _subscriber_client.on_message = _on_message
 
-    def loop():
-        try:
-            _subscriber_client.connect(MQTT_BROKER, MQTT_PORT, MQTT_KEEPALIVE)
-            _subscriber_client.loop_forever()
-        except Exception as e:
-            print(f"MQTT subscriber failed to start: {e}")
+def publish_message(topic, payload):
+    client.publish(topic, json.dumps(payload))
 
-    thread = threading.Thread(target=loop, daemon=True)
-    thread.start()
 
-def reconnect_subscriber():
-    try:
-        print("Manually disconnecting MQTT subscriber")
-        _reconnect_event.clear()
-        _subscriber_client.disconnect()
-        _subscriber_client.loop_stop()
+def register_mqtt_callback(topic, callback):
+    callbacks[topic] = callback
+    client.subscribe(topic)
 
-        print("Reconnecting MQTT subscriber...")
-        _subscriber_client.connect(MQTT_BROKER, MQTT_PORT, MQTT_KEEPALIVE)
-        _subscriber_client.loop_start()
 
-        if not _reconnect_event.wait(timeout=3):  # ✅ Wait max 3s
-            print("Timeout: MQTT subscriber failed to reconnect in time.")
-        else:
-            print("✅ Reconnection confirmed.")
-    except Exception as e:
-        print(f"MQTT reconnect error: {e}")
+def connect_mqtt():
+    client.on_connect = on_connect
+    client.on_message = on_message
+    client.connect(MQTT_BROKER, MQTT_PORT, MQTT_KEEPALIVE)
+    client.loop_start()
 
-# Initialise on import
-start_mqtt_subscriber()
+
+# Connect on module import
+connect_mqtt()

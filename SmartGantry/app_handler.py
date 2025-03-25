@@ -32,7 +32,7 @@ MODE = config.get("mode", "unknown")  # 'entry' or 'exit'
 # === MQTT Topic → Handler mapping ===
 TOPIC_HANDLERS = {
     "app/add_employee/request": "handle_add_employee",
-    "app/device_management/request": "handle_device_info_request",
+    "app/get_device/request": "handle_device_info_request",
     f"app/update_device/{socket.gethostname()}/request": "handle_mode_update"
 }
 
@@ -86,7 +86,7 @@ def handle_device_info_request(payload):
             "mode": MODE
         }
 
-        response_topic = f"app/device_management/response/{hostname}"
+        response_topic = f"app/get_device/response/{hostname}"
         print(f"Publishing device info to topic: {response_topic}")
         client.publish(response_topic, json.dumps(device_info))
 

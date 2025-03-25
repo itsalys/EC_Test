@@ -1,174 +1,103 @@
-{% extends "base.html" %}
+no device_management.js
 
-{% block content %}
-<div class="container mt-4">
-    <h2>Device Management</h2>
+follow the formating of the previous. here are some other helpful files
 
-    <button class="btn btn-primary mb-3" id="refreshDevicesBtn" disabled>Refresh Devices</button>
-    <div class="text-muted mb-2" id="lastRefreshed">Last refreshed: --</div>
+templates/sidebar.html
 
-    <div id="scanningIndicator" class="alert alert-info" style="display: none;">
-        Scanning for devices... please wait.
+<!-- templates/sidebar.html -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">Attendance System</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav" id="navMenu">
+
+                {% if role %}
+                    {% if role == 'admin' %}
+                    <li class="nav-item dropdown">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('attendance.attendance_list_page') }}">Attendance</a>
+                        </li>
+                        <a class="nav-link dropdown-toggle" href="#" id="employeeDropdown" role="button" data-bs-toggle="dropdown">
+                            Employee Management
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('employees.employee_list_page') }}">Employee List</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('employees.add_employee_page') }}">Add Employee</a></li>
+                        </ul>
+                        <li><a class="nav-link" href="{{ url_for('devices.device_list_page') }}">Device Management</a></li>
+                    </li>
+                    {% endif %}
+
+                    {% if role == 'employee' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('attendance.employee_dashboard_page') }}">Dashboard</a>                    
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('employees.employee_view_profile_page') }}">Profile</a>                    
+                    </li>
+                    {% endif %}
+                    <li class="nav-item" id="logoutNav">
+                        <a class="nav-link text-danger" href="#" id="logoutButton">Log Out</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
     </div>
+</nav>
 
-    <table class="table table-bordered table-striped">
-        <thead>
-            <tr>
-                <th>Hostname</th>
-                <th>IP Address</th>
-                <th>Mode</th>
-            </tr>
-        </thead>
-        <tbody id="device-table">
-            <tr>
-                <td colspan="3" class="text-center text-muted">No devices loaded.</td>
-            </tr>
-        </tbody>
-    </table>
-</div>
-
-<!-- Modal for update feedback -->
-<div class="modal fade" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="updateModalLabel">Updating Device</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" id="modalBody">
-        Sending update request...
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-    const token = localStorage.getItem("token");
-    const refreshBtn = document.getElementById("refreshDevicesBtn");
-    const tableBody = document.getElementById("device-table");
-    const scanningIndicator = document.getElementById("scanningIndicator");
-    const lastRefreshed = document.getElementById("lastRefreshed");
+    document.addEventListener("DOMContentLoaded", function () {
+        let token = localStorage.getItem("token");
 
-    if (!token) {
-        window.location.href = "/auth/admin/login";
-        return;
-    }
 
-    const formattedToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
-
-    fetch("/auth/admin/verify", {
-        method: "GET",
-        headers: {
-            "Authorization": formattedToken,
-            "Content-Type": "application/json"
+        if (!token) {
+            document.getElementById("logoutNav").style.display = "none"; // Hide logout if not logged in
         }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.error) {
-            window.location.href = "/auth/admin/login";
-        } else {
-            refreshBtn.disabled = false;
-            scanAndLoadDevices();
-        }
-    });
 
-    function updateDeviceMode(hostname, newMode) {
-    const modal = new bootstrap.Modal(document.getElementById("updateModal"));
-    document.getElementById("modalBody").innerText = `Updating device \"${hostname}\" to mode \"${newMode}\"...`;
-    modal.show();
+        function logout() {
+            const decodedToken = JSON.parse(atob(token.split('.')[1]));
+            const role = decodedToken.role;
 
-    fetch(`/devices/update_mode`, {
-        method: "POST",
-        headers: {
-            "Authorization": formattedToken,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ hostname, mode: newMode })
-    })
-    .then(res => res.json())
-    .then(resp => {
-        if (resp.error) {
-            document.getElementById("modalBody").innerText = `Error: ${resp.error}`;
-        } else {
-            document.getElementById("modalBody").innerText = `Success: ${resp.message}`;
-        }
-    })
-    .catch(err => {
-        document.getElementById("modalBody").innerText = "Failed to send update request.";
-    });
-}
-
-
-    function scanAndLoadDevices() {
-        scanningIndicator.style.display = "block";
-        tableBody.innerHTML = `<tr><td colspan="3" class="text-center text-info">Waiting for devices to respond...</td></tr>`;
-        lastRefreshed.innerText = "Last refreshed: --";
-
-        fetch("/devices/trigger", {
-            method: "POST",
-            headers: {
-                "Authorization": formattedToken,
-                "Content-Type": "application/json"
+            console.log("Logging out...");
+            localStorage.removeItem("token");
+            if (role == "admin") {
+                window.location.href = "/auth/admin/login";  // Redirect to admin login
+            } else {
+                window.location.href = "/auth/employee/login";  // Redirect to employee login
             }
+
+        }
+
+        document.getElementById("logoutButton").addEventListener("click", function(event) {
+            event.preventDefault();
+            logout();
         });
-
-        setTimeout(() => {
-            fetch("/devices/", {
-                method: "GET",
-                headers: {
-                    "Authorization": formattedToken,
-                    "Content-Type": "application/json"
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                scanningIndicator.style.display = "none";
-                tableBody.innerHTML = "";
-
-                if (data.error || !data.devices || data.devices.length === 0) {
-                    tableBody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">${data.error || "No devices found."}</td></tr>`;
-                    return;
-                }
-
-                data.devices.forEach(device => {
-                    const row = document.createElement("tr");
-                    row.innerHTML = `
-                        <td>${device.hostname}</td>
-                        <td>${device.ip_address}</td>
-                        <td>
-                            <select class="form-select mode-selector" data-hostname="${device.hostname}">
-                                <option value="entry" ${device.mode === "entry" ? "selected" : ""}>entry</option>
-                                <option value="exit" ${device.mode === "exit" ? "selected" : ""}>exit</option>
-                            </select>
-                        </td>
-                    `;
-                    tableBody.appendChild(row);
-                });
-
-                document.querySelectorAll(".mode-selector").forEach(select => {
-                    select.addEventListener("change", function () {
-                        const hostname = this.dataset.hostname;
-                        const mode = this.value;
-                        updateDeviceMode(hostname, mode);
-                    });
-                });
-
-                lastRefreshed.innerText = "Last refreshed: " + new Date().toLocaleTimeString();
-            })
-            .catch(err => {
-                scanningIndicator.style.display = "none";
-                tableBody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">Failed to fetch device list.</td></tr>`;
-            });
-        }, 3000);
-    }
-
-    refreshBtn.addEventListener("click", scanAndLoadDevices);
-});
+    });
 </script>
-{% endblock %}
+
+templates/base.html
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin Panel{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+    {% include "sidebar.html" %}
+
+    <div class="container">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
