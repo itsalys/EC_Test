@@ -12,7 +12,7 @@ def restart_service(service_name):
         subprocess.run(["sudo", "systemctl", "restart", service_name], check=True)
         print(f"✅ Service '{service_name}' restarted successfully.")
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to restart service '{service_name}':", e)
+        print(f" Failed to restart service '{service_name}':", e)
 
 
 # === Load config.json ===

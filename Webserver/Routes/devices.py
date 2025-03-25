@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify
 from Utils.auth import verify_token
-from Controllers.mqtt_controller import request_device_list
+from Controllers.mqtt_controller import publish_update_device_mode
 
 devices_bp = Blueprint("devices", __name__)
 
@@ -48,3 +48,24 @@ def update_mode():
     from Controllers.mqtt_controller import publish_update_device_mode
     publish_update_device_mode(hostname, mode)
     return jsonify({"message": "Mode update sent"})
+
+from Controllers.mqtt_controller import publish_update_device_mode
+
+@devices_bp.route("/update_mode", methods=["POST"])
+def update_mode():
+    admin, error = verify_token("admin")
+    if error:
+        return error
+
+    data = request.get_json()
+    hostname = data.get("hostname")
+    mode = data.get("mode")
+
+    if not hostname or mode not in ["entry", "exit"]:
+        return jsonify({"error": "Invalid payload"}), 400
+
+    response, err = publish_update_device_mode(hostname, mode)
+    if err:
+        return jsonify({"error": err}), 504  # Gateway Timeout
+
+    return jsonify(response)

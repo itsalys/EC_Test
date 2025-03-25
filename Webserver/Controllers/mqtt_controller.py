@@ -1,6 +1,8 @@
-import base64
 from Utils.mqtt_client import publish_message, register_mqtt_callback, reconnect_subscriber
+import base64
 import threading
+import time
+
 
 # === ADD EMPLOYEE MQTT ===
 
@@ -35,14 +37,31 @@ def _device_response_handler(topic, payload):
 
 register_mqtt_callback("app/device_management/response/+", _device_response_handler)
 
-def request_device_list():
-    with _lock:
-        print(f"🔍 Cache size: {len(_device_response_cache)}")
-        if not _device_response_cache:
-            return None, "No response received from devices."
-        return list(_device_response_cache.values()), None
+_response_events = {}
+_response_payloads = {}
+_response_lock = threading.Lock()
 
-def publish_update_device_mode(hostname, mode):
+
+def publish_update_device_mode(hostname, mode, timeout=5):
+    response_topic = f"app/update_device/{hostname}/response"
+    request_topic = f"app/update_device/{hostname}/request"
+
+    event = threading.Event()
+
+    def _response_callback(topic, payload):
+        with _response_lock:
+            _response_payloads[hostname] = payload
+            event.set()
+
+    # Temporarily register a handler for the specific response
+    register_mqtt_callback(response_topic, _response_callback)
+
     payload = {"mode": mode}
-    topic = f"app/update_device/{hostname}/request"
-    publish_message(topic, payload)
+    publish_message(request_topic, payload)
+
+    # Wait for response
+    success = event.wait(timeout=timeout)
+    if success:
+        return _response_payloads.get(hostname), None
+    else:
+        return None, f"No response from device '{hostname}' within {timeout} seconds."

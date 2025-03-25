@@ -79,52 +79,31 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     function updateDeviceMode(hostname, newMode) {
-        const modal = new bootstrap.Modal(document.getElementById("updateModal"));
-        document.getElementById("modalBody").innerText = `Updating device \"${hostname}\" to mode \"${newMode}\"...`;
-        modal.show();
+    const modal = new bootstrap.Modal(document.getElementById("updateModal"));
+    document.getElementById("modalBody").innerText = `Updating device \"${hostname}\" to mode \"${newMode}\"...`;
+    modal.show();
 
-        fetch(`/devices/update_mode`, {
-            method: "POST",
-            headers: {
-                "Authorization": formattedToken,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ hostname, mode: newMode })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.error) {
-                document.getElementById("modalBody").innerText = `Error: ${data.error}`;
-                return;
-            }
+    fetch(`/devices/update_mode`, {
+        method: "POST",
+        headers: {
+            "Authorization": formattedToken,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ hostname, mode: newMode })
+    })
+    .then(res => res.json())
+    .then(resp => {
+        if (resp.error) {
+            document.getElementById("modalBody").innerText = `Error: ${resp.error}`;
+        } else {
+            document.getElementById("modalBody").innerText = `Success: ${resp.message}`;
+        }
+    })
+    .catch(err => {
+        document.getElementById("modalBody").innerText = "Failed to send update request.";
+    });
+}
 
-            const responseTopic = `app/update_device/${hostname}/response`;
-            const mqttClient = mqtt.connect("ws://localhost:9001");
-
-            mqttClient.on("connect", () => {
-                mqttClient.subscribe(responseTopic);
-            });
-
-            mqttClient.on("message", (topic, message) => {
-                if (topic === responseTopic) {
-                    const resp = JSON.parse(message.toString());
-                    document.getElementById("modalBody").innerText =
-                        resp.status === "success"
-                            ? `Success: ${resp.message}`
-                            : `Error: ${resp.message}`;
-                    mqttClient.end();
-                }
-            });
-
-            setTimeout(() => {
-                document.getElementById("modalBody").innerText = "Timeout: No response from device.";
-                mqttClient.end();
-            }, 5000);
-        })
-        .catch(err => {
-            document.getElementById("modalBody").innerText = "Failed to send update request";
-        });
-    }
 
     function scanAndLoadDevices() {
         scanningIndicator.style.display = "block";
