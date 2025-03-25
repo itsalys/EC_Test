@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Employee List</h2>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Employee ID</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Department</th>
+            </tr>
+        </thead>
+        <tbody id="employee-table">
+            <!-- Data will be inserted here dynamically -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    console.log("✅ JavaScript Loaded");
+
+    let token = localStorage.getItem("token");
+
+    if (!token) {
+        console.error("❌ No token found. Redirecting to login...");
+        window.location.href = "/auth/admin/login";  
+        return;
+    }
+
+    token = token.startsWith("Bearer ") ? token : `Bearer ${token}`;  
+    console.log("✅ Sending Token:", token);
+
+    // Fetch employee data
+    fetch("/employees/", {
+        method: "GET",
+        headers: {
+            "Authorization": token,
+            "Content-Type": "application/json"
+        },
+        mode: "cors",
+        credentials: "include"
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("✅ Employee Data Received:", data);
+
+        let tableBody = document.getElementById("employee-table");
+        tableBody.innerHTML = "";
+
+        data.forEach(employee => {
+            let row = `<tr>
+                <td>${employee.id}</td>
+                <td><a href="/employees/${employee.id}/profile" class="employee-link">${employee.name}</a></td>
+                <td>${employee.email}</td>
+                <td>${employee.department}</td>
+            </tr>`;
+            tableBody.innerHTML += row;
+        });
+    })
+    .catch(error => {
+        console.error("❌ Failed to fetch employee list:", error);
+    });
+});
+</script>
+
+{% endblock %}

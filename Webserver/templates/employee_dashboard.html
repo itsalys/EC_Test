@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f4f4f4; }
+    .status { font-weight: bold; }
+    .clocked-in { color: green; }
+    .not-clocked-in { color: red; }
+</style>
+
+<div class="container mt-4">
+    <h2>My Attendance</h2>
+
+    <h4>Current Status:</h4>
+    <div id="today-status">
+        {% if today_status %}
+            <p class="status clocked-in">✅ You have clocked in today.</p>
+        {% else %}
+            <p class="status not-clocked-in">❌ You have not clocked in yet.</p>
+        {% endif %}
+    </div>
+
+    <h4>Attendance Records</h4>
+    <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Attendance ID</th>
+            <th>Date and Time</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="attendance-table">
+          <!-- Data will be inserted here dynamically -->
+        </tbody>
+      </table>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+      console.log("✅ Employee Dashboard Loaded");
+      
+      // Retrieve the token from localStorage
+      let token = localStorage.getItem("token");
+      if (!token) {
+        console.error("❌ No token found. Redirecting to login...");
+        window.location.href = "/auth/employee/login";
+        return;
+      }
+      
+      // Ensure token starts with "Bearer "
+      token = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+      console.log("✅ Using Token:", token);
+      
+      // Fetch the employee's attendance data
+      fetch("/attendance/me", {
+        method: "GET",
+        headers: {
+          "Authorization": token,
+          "Content-Type": "application/json"
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log("✅ Attendance Data:", data);
+        
+        // Check for errors
+        if (data.error) {
+          document.getElementById("attendance-table").innerHTML =
+            `<tr><td colspan="3" class="text-center text-danger">${data.error}</td></tr>`;
+          return;
+        }
+        
+        // Display today's clock in status
+        const statusDiv = document.getElementById("today-status");
+        if (data.current_status === "clocked_in") {
+        statusDiv.innerHTML = '<p class="status clocked-in">✅ You are currently clocked in.</p>';
+        } else if (data.current_status === "clocked_out") {
+        statusDiv.innerHTML = '<p class="status not-clocked-in">❌ You are currently clocked out.</p>';
+        } else {
+        statusDiv.innerHTML = '<p class="status not-clocked-in">❌ No attendance record found.</p>';
+        }
+        
+        // Insert attendance records into the table
+        const tableBody = document.getElementById("attendance-table");
+        tableBody.innerHTML = "";
+        data.attendance_records.forEach(record => {
+          const row = `<tr>
+                          <td>${record.attendance_id}</td>
+                          <td>${new Date(record.timestamp).toLocaleString()}</td>
+                          <td>${record.clocked_in ? "Clock In" : "Clock Out"}</td>
+                       </tr>`;
+          tableBody.innerHTML += row;
+        });
+      })
+      .catch(error => {
+        console.error("❌ Error fetching attendance data:", error);
+      });
+    });
+    </script>
+
+{% endblock %}
+                                             

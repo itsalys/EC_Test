@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Attendance Records</h2>
+
+    <div class="mb-3">
+        <label for="employeeFilter" class="form-label">Filter by Employee:</label>
+        <select class="form-control" id="employeeFilter">
+            <option value="all">All Employees</option>
+        </select>
+    </div>
+
+    <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" id="autoRefreshToggle" checked>
+        <label class="form-check-label" for="autoRefreshToggle">Auto-Refresh</label>
+      </div>
+    <div class="text-muted mb-2" id="lastRefreshed">Last refreshed: --</div>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Employee ID</th>
+                <th>Full Name</th>
+                <th>Status</th>
+                <th>Timestamp</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="attendance-table">
+            <!-- Attendance data will be inserted here dynamically -->
+        </tbody>
+    </table>
+
+    <!-- Edit Attendance Modal -->
+    <div class="modal fade" id="editAttendanceModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Attendance</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editAttendanceForm">
+                        <input type="hidden" id="editAttendanceId">
+                        <div class="mb-3">
+                            <label for="editClockedIn" class="form-label">Clock In Status</label>
+                            <select class="form-control" id="editClockedIn" required>
+                                <option value="true">Clock In</option>
+                                <option value="false">Clock Out</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editTimestamp" class="form-label">Timestamp</label>
+                            <input type="datetime-local" class="form-control" id="editTimestamp" required>
+                        </div>
+                        <button type="submit" class="btn btn-success">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        console.log("✅ Attendance Page Loaded");
+    
+        let token = localStorage.getItem("token");
+    
+        if (!token) {
+            console.error("❌ No token found. Redirecting to login...");
+            window.location.href = "/auth/admin/login";
+            return;
+        }
+    
+        token = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+        console.log("✅ Sending Token:", token);
+    
+        function loadEmployees() {
+            fetch("/employees/", {
+                method: "GET",
+                headers: {
+                    "Authorization": token,
+                    "Content-Type": "application/json"
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                let employeeFilter = document.getElementById("employeeFilter");
+                data.forEach(emp => {
+                    let option = document.createElement("option");
+                    option.value = emp.id;
+                    option.textContent = emp.name;
+                    employeeFilter.appendChild(option);
+                });
+            })
+            .catch(error => console.error("❌ Failed to load employees:", error));
+        }
+    
+        function loadAttendance(employeeId = "all") {
+            let url = employeeId === "all" ? "/attendance/" : `/attendance/${employeeId}`;
+            
+            fetch(url, {
+                method: "GET",
+                headers: {
+                    "Authorization": token,
+                    "Content-Type": "application/json"
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("✅ Attendance Data:", data);
+                let tableBody = document.getElementById("attendance-table");
+                tableBody.innerHTML = "";
+    
+                if (data.error) {
+                    tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">${data.error}</td></tr>`;
+                    return;
+                }
+    
+                data.forEach(record => {
+                    let row = `<tr>
+                        <td>${record.employee_id}</td>
+                        <td>${record.name || "N/A"}</td>
+                        <td>${record.clocked_in ? "Clocked In" : "Clocked Out"}</td>
+                        <td>${new Date(record.timestamp).toLocaleString()}</td>
+                        <td><button class="btn btn-warning btn-sm edit-btn" data-id="${record.id}" data-clocked-in="${record.clocked_in}" data-timestamp="${record.timestamp}">Edit</button></td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+    
+                document.querySelectorAll(".edit-btn").forEach(button => {
+                    button.addEventListener("click", function () {
+                        let recordId = this.getAttribute("data-id");
+                        let clockedIn = this.getAttribute("data-clocked-in") === "true";
+                        let timestamp = this.getAttribute("data-timestamp");
+    
+                        document.getElementById("editAttendanceId").value = recordId;
+                        document.getElementById("editClockedIn").value = clockedIn;
+                        document.getElementById("editTimestamp").value = timestamp.slice(0, 16);
+    
+                        let modal = new bootstrap.Modal(document.getElementById("editAttendanceModal"));
+                        modal.show();
+                    });
+                });
+    
+                document.getElementById("lastRefreshed").innerText = "Last refreshed: " + new Date().toLocaleTimeString();
+            })
+            .catch(error => console.error("❌ Failed to load attendance records:", error));
+        }
+    
+        document.getElementById("employeeFilter").addEventListener("change", function () {
+            loadAttendance(this.value);
+        });
+    
+        document.getElementById("editAttendanceForm").addEventListener("submit", function (event) {
+            event.preventDefault();
+    
+            let attendanceId = document.getElementById("editAttendanceId").value;
+            let clockedIn = document.getElementById("editClockedIn").value === "true";
+            let timestamp = document.getElementById("editTimestamp").value;
+    
+            fetch(`/attendance/${attendanceId}`, {
+                method: "PUT",
+                headers: {
+                    "Authorization": token,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ clocked_in: clockedIn, timestamp: timestamp })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("✅ Server Response:", data);
+                if (!data.error) {
+                    location.reload();
+                } else {
+                    alert("❌ Error updating attendance: " + data.error);
+                }
+            })
+            .catch(error => console.error("❌ Failed to update attendance:", error));
+        });
+    
+        loadEmployees();
+        loadAttendance();
+    
+        // 🔄 Auto-refresh toggle logic
+        let autoRefreshEnabled = true;
+        const refreshIntervalSeconds = 60;
+        let autoRefreshTimer = null;
+    
+        function startAutoRefresh() {
+            stopAutoRefresh();
+            autoRefreshTimer = setInterval(() => {
+                if (!autoRefreshEnabled) return;
+                const selectedEmployee = document.getElementById("employeeFilter").value;
+                console.log(`🔄 Auto-refreshing attendance data for: ${selectedEmployee}`);
+                loadAttendance(selectedEmployee);
+            }, refreshIntervalSeconds * 1000);
+        }
+    
+        function stopAutoRefresh() {
+            if (autoRefreshTimer) {
+                clearInterval(autoRefreshTimer);
+                autoRefreshTimer = null;
+            }
+        }
+    
+        document.getElementById("autoRefreshToggle").addEventListener("change", function () {
+            autoRefreshEnabled = this.checked;
+            if (autoRefreshEnabled) {
+                console.log("✅ Auto-refresh enabled");
+                startAutoRefresh();
+            } else {
+                console.log("⏸️ Auto-refresh disabled");
+                stopAutoRefresh();
+            }
+        });
+    
+        startAutoRefresh();
+    });
+</script>
+
+{% endblock %}

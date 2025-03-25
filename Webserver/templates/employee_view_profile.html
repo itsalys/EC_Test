@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Profile{% endblock %}
+
+{% block content %}
+<style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+</style>
+
+<div class="container mt-4">
+    <h2>My Profile</h2>
+
+    <div id="employee-details">
+      <p><strong>Employee ID:</strong> <span id="emp-id">Loading...</span></p>
+      <p><strong>Full Name:</strong> <span id="emp-name">Loading...</span></p>
+      <p><strong>Email:</strong> <span id="emp-email">Loading...</span></p>
+      <p><strong>Department:</strong> <span id="emp-department">Loading...</span></p>
+      <img id="profile-pic" class="img-fluid" alt="Profile Picture">
+  </div>
+
+  <hr>
+
+  <h2>Change Password</h2>
+  <p id="password-error" class="error"></p>
+
+      <form id="changePasswordForm">
+        <div class="mb-3">
+            <label for="currentPassword" class="form-label">Current Password:</label>
+            <input type="password" class="form-control" id="currentPassword" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="newPassword" class="form-label">New Password:</label>
+          <input type="password" class="form-control" id="newPassword" required>
+      </div>
+
+      <div class="mb-3">
+        <label for="confirmPassword" class="form-label">Confirm Password:</label>
+        <input type="password" class="form-control" id="confirmPassword" required>
+    </div>
+
+        <button type="submit" class="btn btn-success">Change Password</button>
+    </form>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+      console.log("✅ Employee Profile Loaded");
+      
+      // Retrieve the token from localStorage
+      let token = localStorage.getItem("token");
+      if (!token) {
+        console.error("❌ No token found. Redirecting to login...");
+        window.location.href = "/auth/employee/login";
+        return;
+      }
+      
+      // Ensure token starts with "Bearer "
+      token = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+      console.log("✅ Using Token:", token);
+
+      const decodedToken = JSON.parse(atob(token.split('.')[1]));
+      const employeeId = decodedToken.id;
+
+      fetch(`/employees/${employeeId}`, {
+        method: "GET",
+        headers: {
+            "Authorization": token,
+            "Content-Type": "application/json"
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("✅ Employee Data Received:", data);
+
+        if (data.error) {
+            console.error("❌ Error fetching employee:", data.error);
+            return;
+        }
+
+        document.getElementById("emp-id").innerText = data.id;
+        document.getElementById("emp-name").innerText = data.name;
+        document.getElementById("emp-email").innerText = data.email;
+        document.getElementById("emp-department").innerText = data.department;
+        if (data.profile_pic) {
+            document.getElementById("profile-pic").src = "data:image/png;base64," + data.profile_pic;
+        }
+    })
+    .catch(error => console.error("❌ Failed to fetch employee profile:", error));
+
+    document.getElementById("changePasswordForm").addEventListener("submit", function (event) {
+        event.preventDefault();
+
+        const currentPassword = document.getElementById("currentPassword").value;
+        const newPassword = document.getElementById("newPassword").value;
+        const confirmPassword = document.getElementById("confirmPassword").value;
+        const errorElement = document.getElementById("password-error");
+
+        // Validate password
+        if (!validatePassword(newPassword, confirmPassword, errorElement)) {
+            return;
+        }
+
+        // Send request to change password
+        fetch(`/employees/${employeeId}/change_password`, {
+            method: "PUT",
+            headers: {
+                "Authorization": token,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                errorElement.innerText = data.error;
+            } else {
+                alert("✅ Password changed successfully!");
+                document.getElementById("changePasswordForm").reset();
+                errorElement.innerText = "";
+            }
+        })
+        .catch(error => {
+            console.error("❌ Error changing password:", error);
+            errorElement.innerText = "An error occurred. Please try again.";
+        });
+    });
+
+    function validatePassword(newPassword, confirmPassword, errorElement) {
+        // Password validation: 8+ chars, alphanumeric, symbol
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+        if (!passwordRegex.test(newPassword)) {
+            errorElement.innerText = "❌ Password must be at least 8 characters, contain Uppercase and Lowercase letters, a number, and a symbol.";
+            return false;
+        }
+
+        // Confirm password match
+        if (newPassword !== confirmPassword) {
+            errorElement.innerText = "❌ Passwords do not match.";
+            return false;
+        }
+
+        errorElement.innerText = "";
+        return true;
+    }
+
+    });
+    </script>
+
+{% endblock %}
+                                             

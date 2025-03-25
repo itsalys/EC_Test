@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Employee Profile</h2>
+
+    <div id="employee-details">
+        <p><strong>Employee ID:</strong> <span id="emp-id"></span></p>
+        <p><strong>Full Name:</strong> <span id="emp-name"></span></p>
+        <p><strong>Email:</strong> <span id="emp-email"></span></p>
+        <p><strong>Department:</strong> <span id="emp-department"></span></p>
+        <p><strong>Attendance Status:</strong> <span id="emp-attendance">No attendance record found</span></p>
+        <img id="profile-pic" class="img-fluid" alt="Profile Picture">
+    </div>
+
+    <hr>
+
+    <h3>Manage Attendance</h3>
+
+    <!-- Option to choose between adding a new record or updating an existing one -->
+    <div class="mb-3">
+        <label for="attendanceAction" class="form-label">Select Action:</label>
+        <select class="form-control" id="attendanceAction">
+            <option value="add">Add New Attendance Record</option>
+            <option value="update">Update Existing Record</option>
+        </select>
+    </div>
+
+    <!-- Form for adding a new attendance record -->
+    <form id="addAttendanceForm">
+        <div class="mb-3">
+            <label for="newClockedIn" class="form-label">Clock In Status</label>
+            <select class="form-control" id="newClockedIn" required>
+                <option value="true">Clock In</option>
+                <option value="false">Clock Out</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="newTimestamp" class="form-label">Timestamp</label>
+            <input type="datetime-local" class="form-control" id="newTimestamp" required>
+        </div>
+
+        <button type="submit" class="btn btn-success">Add Attendance</button>
+    </form>
+
+    <!-- Form for updating an existing attendance record -->
+    <form id="updateAttendanceForm" style="display: none;">
+        <div class="mb-3">
+            <label for="existingAttendance" class="form-label">Select Attendance Record</label>
+            <select class="form-control" id="existingAttendance">
+                <option value="">No attendance record found</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="updateClockedIn" class="form-label">Clock In Status</label>
+            <select class="form-control" id="updateClockedIn" required>
+                <option value="true">Clock In</option>
+                <option value="false">Clock Out</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="updateTimestamp" class="form-label">New Timestamp</label>
+            <input type="datetime-local" class="form-control" id="updateTimestamp" required>
+        </div>
+
+        <button type="submit" class="btn btn-warning">Update Attendance</button>
+    </form>
+
+    <div id="responseMessage" class="alert mt-3" style="display: none;"></div>
+
+    <a href="/employees/list" class="btn btn-secondary mt-3">Back to Employee List</a>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    console.log("✅ Employee Profile Loaded");
+
+    let token = localStorage.getItem("token");
+
+    if (!token) {
+        console.error("❌ No token found. Redirecting to login...");
+        window.location.href = "/auth/admin/login";  
+        return;
+    }
+
+    token = token.startsWith("Bearer ") ? token : `Bearer ${token}`;  
+    console.log("✅ Sending Token:", token);
+
+    const employeeId = window.location.pathname.split("/")[2]; // Extract employee ID from URL
+    let attendanceRecords = [];
+
+    fetch(`/employees/${employeeId}`, {
+        method: "GET",
+        headers: {
+            "Authorization": token,
+            "Content-Type": "application/json"
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("✅ Employee Data Received:", data);
+
+        if (data.error) {
+            console.error("❌ Error fetching employee:", data.error);
+            return;
+        }
+
+        document.getElementById("emp-id").innerText = data.id;
+        document.getElementById("emp-name").innerText = data.name;
+        document.getElementById("emp-email").innerText = data.email;
+        document.getElementById("emp-department").innerText = data.department;
+        if (data.profile_pic) {
+            document.getElementById("profile-pic").src = "data:image/png;base64," + data.profile_pic;
+        }
+
+        fetchAttendance(employeeId);
+    })
+    .catch(error => console.error("❌ Failed to fetch employee profile:", error));
+
+    function fetchAttendance(employeeId) {
+        fetch(`/attendance/${employeeId}`, {
+            method: "GET",
+            headers: {
+                "Authorization": token,
+                "Content-Type": "application/json"
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("✅ Attendance Data:", data);
+
+            if (data.error) {
+                document.getElementById("emp-attendance").innerText = "No record of attendance";
+                return;
+            }
+
+            attendanceRecords = data;
+            let latestRecord = data[0]; 
+            let status = latestRecord.clocked_in ? "Clocked In" : "Clocked Out";
+            document.getElementById("emp-attendance").innerText = `${status} at ${new Date(latestRecord.timestamp).toLocaleString()}`;
+
+            // Populate attendance records for update selection
+            let select = document.getElementById("existingAttendance");
+            select.innerHTML = "";
+            data.forEach(record => {
+                let option = document.createElement("option");
+                option.value = record.id;
+                option.text = `${record.clocked_in ? "Clocked In" : "Clocked Out"} at ${new Date(record.timestamp).toLocaleString()}`;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => console.error("❌ Failed to fetch attendance:", error));
+    }
+
+    // Toggle between add and update forms
+    document.getElementById("attendanceAction").addEventListener("change", function () {
+        let action = this.value;
+        document.getElementById("addAttendanceForm").style.display = action === "add" ? "block" : "none";
+        document.getElementById("updateAttendanceForm").style.display = action === "update" ? "block" : "none";
+    });
+
+    // Handle new attendance submission
+    document.getElementById("addAttendanceForm").addEventListener("submit", function(event) {
+        event.preventDefault();
+
+        let requestData = {
+            employee_id: employeeId,
+            clocked_in: document.getElementById("newClockedIn").value === "true",
+            timestamp: document.getElementById("newTimestamp").value
+        };
+
+        fetch("/attendance/", {
+            method: "POST",
+            headers: {
+                "Authorization": token,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("✅ Server Response:", data);
+            location.reload();
+        })
+        .catch(error => console.error("❌ Failed to add attendance:", error));
+    });
+
+    // Handle update attendance submission
+    document.getElementById("updateAttendanceForm").addEventListener("submit", function(event) {
+        event.preventDefault();
+
+        let attendanceId = document.getElementById("existingAttendance").value;
+        let requestData = {
+            clocked_in: document.getElementById("updateClockedIn").value === "true",
+            timestamp: document.getElementById("updateTimestamp").value
+        };
+
+        fetch(`/attendance/${attendanceId}`, {
+            method: "PUT",
+            headers: {
+                "Authorization": token,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("✅ Server Response:", data);
+            location.reload();
+        })
+        .catch(error => console.error("❌ Failed to update attendance:", error));
+    });
+
+});
+</script>
+
+{% endblock %}

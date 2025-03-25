@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Employee Login{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Employee Login</h2>
+    <form id="loginForm">
+        <div class="mb-3">
+            <label for="email" class="form-label">Email:</label>
+            <input type="email" class="form-control" id="email" name="email" required>
+        </div>
+        <div class="mb-3">
+            <label for="password" class="form-label">Password:</label>
+            <input type="password" class="form-control" id="password" name="password" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Login</button>
+    </form>
+
+    <div id="errorMessage" class="alert alert-danger mt-3" style="display: none;"></div>
+</div>
+
+<script>
+document.getElementById("loginForm").addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    fetch("/auth/employee/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+        mode: "cors",
+        credentials: "include"
+    })
+    .then(response => response.json().then(data => ({ status: response.status, body: data }))) 
+    .then(({ status, body }) => {
+        if (status === 200 && body.token) {
+            localStorage.setItem("token", body.token);  // ✅ Store JWT with "Bearer"
+            console.log("✅ Stored Token:", localStorage.getItem("token")); // ✅ Debugging
+
+            // ✅ Verify token before redirecting
+            return fetch("/auth/employee/verify", {
+                method: "GET",
+                headers: {
+                    "Authorization": localStorage.getItem("token"),
+                    "Content-Type": "application/json"
+                },
+                mode: "cors",
+                credentials: "include"
+            });
+        } else {
+            throw new Error(body.error || "An unknown error occurred.");
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error("❌ Token Invalid! Redirecting to login...");
+            localStorage.removeItem("token");
+            window.location.href = "/auth/employee/login";
+        } else {
+            console.log("✅ Token Verified:", data);
+            window.location.href = "/attendance/dashboard";
+
+        }
+    })
+    .catch(error => {
+        console.error("Login failed:", error);
+        showError("A network error occurred. Please try again.");
+    });
+
+    function showError(message) {
+        document.getElementById("errorMessage").innerText = message;
+        document.getElementById("errorMessage").style.display = "block";
+    }
+});
+
+</script>
+
+{% endblock %}

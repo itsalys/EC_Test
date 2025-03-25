@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Add New Employee</h2>
+
+    <form id="addEmployeeForm" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label for="full_name" class="form-label">Full Name</label>
+            <input type="text" class="form-control" id="full_name" name="full_name" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="department" class="form-label">Department</label>
+            <input type="text" class="form-control" id="department" name="department" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" name="email" required>
+            <div class="invalid-feedback">Please enter a valid email address.</div>
+        </div>
+
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" name="password" required>
+            <div class="invalid-feedback">
+                Password must be at least 8 characters, contain one uppercase, one lowercase, one number, and one special character.
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="profile_pic" class="form-label">Profile Picture</label>
+            <input type="file" class="form-control" id="profile_pic" name="profile_pic" accept=".png, .jpg, .jpeg, .gif, image/png, image/jpeg, image/jpg, image/gif" required>
+            <div class="invalid-feedback">Please upload a valid image (PNG, JPG, JPEG, GIF).</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="submitButton" disabled>Add Employee</button>
+    </form>
+
+    <div id="responseMessage" class="alert mt-3" style="display: none;"></div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    console.log("✅ JavaScript Loaded");
+
+    let token = localStorage.getItem("token");
+    const submitButton = document.getElementById("submitButton");
+
+    if (!token) {
+        console.error("❌ No token found. Redirecting to login...");
+        submitButton.disabled = true;
+        window.location.href = "/auth/admin/login";  
+        return;
+    }
+
+    token = token.startsWith("Bearer ") ? token : `Bearer ${token}`;  
+    console.log("✅ Sending Token:", token);
+
+    // Verify token before allowing form submission
+    fetch("/auth/admin/verify", {
+        method: "GET",
+        headers: {
+            "Authorization": token,
+            "Content-Type": "application/json"
+        },
+        mode: "cors",
+        credentials: "include"
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error("❌ Unauthorized! Redirecting to login...");
+            submitButton.disabled = true;
+            window.location.href = "/auth/admin/login";
+        } else {
+            console.log("✅ Token Verified:", data);
+            submitButton.disabled = false; // Enable submit button after verification
+        }
+    })
+    .catch(error => {
+        console.error("❌ Fetch Error:", error);
+        submitButton.disabled = true;
+        window.location.href = "/auth/admin/login";  
+    });
+
+    // Handle form submission
+    document.getElementById("addEmployeeForm").addEventListener("submit", function(event) {
+        event.preventDefault();
+
+        // Validate all required fields
+        let fullName = document.getElementById("full_name");
+        let department = document.getElementById("department");
+        let email = document.getElementById("email");
+        let password = document.getElementById("password");
+        let profilePic = document.getElementById("profile_pic");
+
+        let isValid = true;
+
+        if (!fullName.value.trim()) {
+            fullName.classList.add("is-invalid");
+            isValid = false;
+        } else {
+            fullName.classList.remove("is-invalid");
+        }
+
+        if (!department.value.trim()) {
+            department.classList.add("is-invalid");
+            isValid = false;
+        } else {
+            department.classList.remove("is-invalid");
+        }
+
+        // Validate email format
+        let emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(email.value)) {
+            email.classList.add("is-invalid");
+            isValid = false;
+        } else {
+            email.classList.remove("is-invalid");
+        }
+
+        // Validate password format
+        let passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+        if (!passwordPattern.test(password.value)) {
+            password.classList.add("is-invalid");
+            isValid = false;
+        } else {
+            password.classList.remove("is-invalid");
+        }
+
+        // Validate profile picture
+        if (!profilePic.files.length) {
+            profilePic.classList.add("is-invalid");
+            isValid = false;
+        } else {
+            let file = profilePic.files[0];
+            let allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/gif"];
+            let allowedExtensions = [".png", ".jpg", ".jpeg", ".gif"];
+            const maxSizeMB = 10;
+            if (!allowedTypes.includes(file.type) || file.size > maxSizeMB * 1024 * 1024) {
+                profilePic.classList.add("is-invalid");
+                isValid = false;
+            } else {
+                profilePic.classList.remove("is-invalid");
+            }
+        }
+
+        if (!isValid) {
+            console.error("❌ Form validation failed.");
+            return;
+        }
+
+        // Prepare form data
+        const formData = new FormData();
+        formData.append("full_name", fullName.value.trim());
+        formData.append("department", department.value.trim());
+        formData.append("email", email.value.trim());
+        formData.append("password", password.value);
+        formData.append("profile_pic", profilePic.files[0]);
+
+        console.log("✅ Sending request to add employee...");
+
+        fetch("/employees/", {
+            method: "POST",
+            headers: {
+                "Authorization": token
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("✅ Server Response:", data);
+            let responseDiv = document.getElementById("responseMessage");
+            responseDiv.style.display = "block";
+            responseDiv.classList.remove("alert-danger", "alert-success");
+
+            if (data.error) {
+                responseDiv.classList.add("alert-danger");
+                responseDiv.innerText = "❌ Error: " + data.error;
+            } else {
+                responseDiv.classList.add("alert-success");
+                responseDiv.innerText = "✅ " + data.message;
+                document.getElementById("addEmployeeForm").reset();
+            }
+        })
+        .catch(error => {
+            console.error("❌ Failed to add employee:", error);
+            let responseDiv = document.getElementById("responseMessage");
+            responseDiv.style.display = "block";
+            responseDiv.classList.add("alert-danger");
+            responseDiv.innerText = "❌ Network error. Please try again.";
+        });
+    });
+});
+</script>
+
+{% endblock %}
