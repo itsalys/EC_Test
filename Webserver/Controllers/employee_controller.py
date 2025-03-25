@@ -59,12 +59,8 @@ def add_employee(data):
     db.session.add(new_employee)
     db.session.commit()
 
-    # MQTT publishing after successful commit
-    publish_new_employee(
-        employee_id=new_employee.employee_id,
-        full_name=new_employee.full_name,
-        profile_pic_binary=new_employee.profile_pic
-    )
+    # Publish to MQTT after successful commit
+    publish_new_employee(new_employee)
 
     return "Employee added successfully", None
 
