@@ -4,7 +4,7 @@
 <div class="container mt-4">
     <h2>Device Management</h2>
 
-    <button class="btn btn-primary mb-3" id="refreshDevicesBtn">Refresh Devices</button>
+    <button class="btn btn-primary mb-3" id="refreshDevicesBtn" disabled>Refresh Devices</button>
     <div class="text-muted mb-2" id="lastRefreshed">Last refreshed: --</div>
 
     <div id="scanningIndicator" class="alert alert-info" style="display: none;">
@@ -29,18 +29,45 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    let token = localStorage.getItem("token");
-
-    if (!token) {
-        window.location.href = "/auth/admin/login";
-        return;
-    }
-
-    token = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+    const token = localStorage.getItem("token");
     const refreshBtn = document.getElementById("refreshDevicesBtn");
     const tableBody = document.getElementById("device-table");
     const scanningIndicator = document.getElementById("scanningIndicator");
     const lastRefreshed = document.getElementById("lastRefreshed");
+
+    if (!token) {
+        console.error("No token found. Redirecting...");
+        window.location.href = "/auth/admin/login";
+        return;
+    }
+
+    const formattedToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+
+    // Verify admin token before allowing access
+    fetch("/auth/admin/verify", {
+        method: "GET",
+        headers: {
+            "Authorization": formattedToken,
+            "Content-Type": "application/json"
+        },
+        mode: "cors",
+        credentials: "include"
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error("Invalid token. Redirecting...");
+            window.location.href = "/auth/admin/login";
+        } else {
+            console.log("Token verified as admin:", data);
+            refreshBtn.disabled = false;
+            scanAndLoadDevices(); // Auto-load only after auth
+        }
+    })
+    .catch(err => {
+        console.error("Verification failed. Redirecting...");
+        window.location.href = "/auth/admin/login";
+    });
 
     function scanAndLoadDevices() {
         scanningIndicator.style.display = "block";
@@ -50,7 +77,7 @@ document.addEventListener("DOMContentLoaded", function () {
         fetch("/devices/trigger", {
             method: "POST",
             headers: {
-                "Authorization": token,
+                "Authorization": formattedToken,
                 "Content-Type": "application/json"
             }
         });
@@ -59,14 +86,14 @@ document.addEventListener("DOMContentLoaded", function () {
             fetch("/devices/", {
                 method: "GET",
                 headers: {
-                    "Authorization": token,
+                    "Authorization": formattedToken,
                     "Content-Type": "application/json"
                 }
             })
             .then(response => response.json())
             .then(data => {
-                tableBody.innerHTML = "";
                 scanningIndicator.style.display = "none";
+                tableBody.innerHTML = "";
 
                 if (data.error || !data.devices || data.devices.length === 0) {
                     tableBody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">${data.error || "No devices found."}</td></tr>`;
@@ -74,7 +101,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
 
                 data.devices.forEach(device => {
-                    let row = `<tr>
+                    const row = `<tr>
                         <td>${device.hostname}</td>
                         <td>${device.ip_address}</td>
                         <td>${device.mode}</td>
@@ -92,7 +119,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     refreshBtn.addEventListener("click", scanAndLoadDevices);
-    scanAndLoadDevices(); // Initial auto-scan
 });
 </script>
 {% endblock %}
