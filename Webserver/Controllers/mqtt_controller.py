@@ -36,6 +36,8 @@ register_mqtt_callback("app/device_management/response/+", _device_response_hand
 
 def request_device_list():
     with _lock:
+        print(f"🔍 Cache size: {len(_device_response_cache)}")
         if not _device_response_cache:
             return None, "No response received from devices."
         return list(_device_response_cache.values()), None
+
