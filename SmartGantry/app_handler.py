@@ -5,6 +5,16 @@ import socket
 import paho.mqtt.client as mqtt
 from Inp_Camera.facialRecognition import add_face
 
+import subprocess
+
+def restart_service(service_name):
+    try:
+        subprocess.run(["sudo", "systemctl", "restart", service_name], check=True)
+        print(f"✅ Service '{service_name}' restarted successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Failed to restart service '{service_name}':", e)
+
+
 # === Load config.json ===
 CONFIG_FILE = "config.json"
 
@@ -22,7 +32,8 @@ MODE = config.get("mode", "unknown")  # 'entry' or 'exit'
 # === MQTT Topic → Handler mapping ===
 TOPIC_HANDLERS = {
     "app/add_employee/request": "handle_add_employee",
-    "app/device_management/request": "handle_device_info_request"
+    "app/device_management/request": "handle_device_info_request",
+    f"app/update_device/{socket.gethostname()}": "handle_mode_update"
 }
 
 # === Topic Handlers ===
@@ -81,6 +92,28 @@ def handle_device_info_request(payload):
 
     except Exception as e:
         print(f"Failed to generate or send device info: {e}")
+
+def handle_mode_update(payload):
+    global MODE
+    mode = payload.get("mode")
+    if mode not in ["entry", "exit"]:
+        print(f"Invalid mode: {mode}")
+        return
+
+    config_path = "config.json"
+    with open(config_path, "r") as f:
+        config = json.load(f)
+
+    config["mode"] = mode
+    with open(config_path, "w") as f:
+        json.dump(config, f, indent=4)
+
+    MODE = mode
+    print(f"Device mode updated to: {MODE}")
+
+    # restart_service("face-recognition.service")
+    # print(f"Service restarted - ")
+
 
 # === Dispatcher ===
 

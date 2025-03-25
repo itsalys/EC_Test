@@ -42,3 +42,7 @@ def request_device_list():
             return None, "No response received from devices."
         return list(_device_response_cache.values()), None
 
+def publish_update_device_mode(hostname, mode):
+    payload = {"mode": mode}
+    topic = f"app/update_device/{hostname}"
+    publish_message(topic, payload)
