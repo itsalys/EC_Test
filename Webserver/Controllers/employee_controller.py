@@ -2,8 +2,7 @@ import bcrypt
 from Models.employee import Employee
 from Models import db
 import base64
-from Utils.mqtt_client import publish_new_employee
-
+from Controllers.mqtt_controller import publish_new_employee
 
 # Function to update an employee's profile picture
 def update_employee_profile_picture(employee_id, file):
