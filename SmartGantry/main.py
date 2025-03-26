@@ -62,7 +62,7 @@ def main():
                 screen_on = True
 
             print("Main - Object detected within 100 cm. Starting facial recognition...")
-            ui.show_message("Please look at the camera for verification...", "yellow")
+            ui.show_message("Please look at the camera for verification...", "white")
 
             result = FR.facialRecognition()
 
@@ -70,7 +70,7 @@ def main():
                 wake_word = result["name"]
                 user_id = result["id"]
                 print(f"Main - User recognized: {wake_word} (ID: {user_id}). Initiating speech recognition...")
-                ui.show_message(f"Hello {wake_word}, please say your wake word...", "yellow")
+                ui.show_message(f"Hello {wake_word}, please say your wake word...", "white")
 
                 speech_detected = SR.speechRecognition(wake_word)
 

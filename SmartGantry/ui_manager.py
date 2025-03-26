@@ -1,3 +1,4 @@
+import os
 import tkinter as tk
 import subprocess
 
@@ -7,6 +8,7 @@ class UIManager:
         self.root.title("Smart Gantry System")
         self.root.attributes("-fullscreen", True)
         self.root.configure(bg="black")
+
         self.label = tk.Label(
             self.root,
             text="",
@@ -17,7 +19,7 @@ class UIManager:
             justify="center"
         )
         self.label.pack(expand=True)
-
+        self.display_env = os.environ.get("DISPLAY", ":0")
         self.hide_ui()
 
     def show_message(self, message, colour="white"):
@@ -26,12 +28,12 @@ class UIManager:
         self.root.update()
 
     def show_ui(self):
-        subprocess.run(["vcgencmd", "display_power", "1"])
+        subprocess.run(["xset", "s", "reset"], env={"DISPLAY": self.display_env})
         self.root.deiconify()
         self.root.update()
 
     def hide_ui(self):
-        subprocess.run(["vcgencmd", "display_power", "0"])
+        subprocess.run(["xset", "s", "activate"], env={"DISPLAY": self.display_env})
         self.root.withdraw()
 
     def run(self):
