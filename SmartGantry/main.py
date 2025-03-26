@@ -9,6 +9,7 @@ import json
 import paho.mqtt.client as mqtt
 
 ui = UIManager()
+screen_on = False  # Track screen state
 
 # === Load MQTT Configuration from JSON File ===
 with open("config.json") as f:
