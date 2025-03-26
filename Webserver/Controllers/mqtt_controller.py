@@ -21,7 +21,7 @@ def handle_device_scan_response(topic, payload):
         with device_lock:
             device_responses[hostname] = {
                 "hostname": hostname,
-                "ip": payload.get("ip"),
+                "ip": payload.get("ip_address"),
                 "mode": payload.get("mode")
             }
     except Exception as e:
