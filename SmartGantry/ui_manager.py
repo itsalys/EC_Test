@@ -20,10 +20,6 @@ class UIManager:
         )
         self.label.pack(expand=True)
 
-
-        self.root.bind("q", self.quit_app)
-        self.root.bind("<Escape>", self.quit_app)  # Optional: Esc key also quits
-
         self.display_env = os.environ.get("DISPLAY", ":0")
         self.blank = False
         self.hide_ui()
@@ -57,12 +53,6 @@ class UIManager:
             subprocess.run(["xset", "dpms", "force", "off"], env={"DISPLAY": self.display_env}, check=False)
         except Exception as e:
             print(f"[UI] Warning: xset off failed: {e}")
-
-    def quit_app(self, event=None):
-        print("[UI] Quit signal received. Closing application...")
-        self.root.destroy()
-        exit(0)
-
 
     def run(self):
         self.root.mainloop()
