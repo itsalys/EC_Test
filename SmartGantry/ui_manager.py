@@ -7,8 +7,15 @@ class UIManager:
         self.root.title("Smart Gantry System")
         self.root.attributes("-fullscreen", True)
         self.root.configure(bg="black")
-
-        self.label = tk.Label(self.root, text="", font=("Helvetica", 32), fg="white", bg="black", wraplength=800)
+        self.label = tk.Label(
+            self.root,
+            text="",
+            font=("Helvetica", 64, "bold"),
+            fg="white",
+            bg="black",
+            wraplength=1800,
+            justify="center"
+        )
         self.label.pack(expand=True)
 
         self.hide_ui()
