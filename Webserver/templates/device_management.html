@@ -75,6 +75,16 @@
                 saveBtn.addEventListener("click", () => {
                     const newMode = modeSelect.value;
                     const hostname = device.hostname;
+                    const currentMode = device.mode;
+
+                    if (newMode === currentMode) {
+                        updateStatus("No changes made.", "info");
+                        modeDisplay.style.display = "inline";
+                        modeSelect.style.display = "none";
+                        editBtn.style.display = "inline-block";
+                        saveBtn.style.display = "none";
+                        return;
+                    }
 
                     updateStatus("Updating " + hostname + "...", "info");
 
@@ -90,6 +100,7 @@
                         if (data.success) {
                             updateStatus("Mode updated successfully.", "success");
                             modeDisplay.textContent = newMode;
+                            device.mode = newMode;
                         } else {
                             updateStatus("Failed to update mode: " + data.error, "danger");
                         }
