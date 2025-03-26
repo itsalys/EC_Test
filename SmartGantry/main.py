@@ -2,10 +2,13 @@ import Inp_Camera.facialRecognition as FR
 import Inp_Mic.speechRecognition as SR
 import Inp_Ultrasonic.objectDetection as UD
 import Out_Speaker.audioFeedback as AF
+from ui_manager import UIManager
 import time
 import socket
 import json
 import paho.mqtt.client as mqtt
+
+ui = UIManager()
 
 # === Load MQTT Configuration from JSON File ===
 with open("config.json") as f:
@@ -45,21 +48,21 @@ client.connect(BROKER, PORT, KEEPALIVE)
 client.subscribe(MQTT_TOPIC_RESPONSE)
 client.loop_start()
 
-def main():
-    global response_payload
-
     while True:
         distance = UD.measure_distance()
         print(f"Main - Measured Distance: {distance} cm")
 
         if UD.is_object_in_range(distance, threshold=100):
             print("Main - Object detected within 100 cm. Starting facial recognition...")
+            ui.show_message("Please look at the camera for verification...", "yellow")
+
             result = FR.facialRecognition()
 
             if result:
                 wake_word = result["name"]
                 user_id = result["id"]
                 print(f"Main - User recognized: {wake_word} (ID: {user_id}). Initiating speech recognition...")
+                ui.show_message(f"Hello {wake_word}, please say your wake word...", "yellow")
 
                 speech_detected = SR.speechRecognition(wake_word)
 
@@ -83,33 +86,45 @@ def main():
                         status = response_payload.get("status")
 
                         if status == "success":
-                            print(f"[Access Granted] {ACTION.replace('_', ' ').capitalize()} confirmed.")
+                            msg = f"[Access Granted] {ACTION.replace('_', ' ').capitalize()} confirmed."
+                            print(msg)
+                            ui.show_message("ACCESS GRANTED\nWelcome!", "green")
                             AF.play_success_message()
 
                         elif status == "denied":
-                            print(f"[Access Denied] {response_payload.get('message', 'Access denied.')} Please try again.")
+                            reason = response_payload.get("message", "Access denied.")
+                            print(f"[Access Denied] {reason} Please try again.")
+                            ui.show_message(f"ACCESS DENIED\n{reason}", "red")
                             AF.play_denied_message()
 
                         elif status == "error":
-                            print(f"[Error] {response_payload.get('message', 'An error occurred during verification.')}")
+                            reason = response_payload.get("message", "An error occurred during verification.")
+                            print(f"[Error] {reason}")
+                            ui.show_message(f"ERROR\n{reason}", "red")
                             AF.play_error_message()
 
                         else:
                             print(f"[Error] MQTT - Unexpected status: {status}")
+                            ui.show_message("ERROR\nUnexpected status from server.", "red")
                             AF.play_error_message()
                     else:
                         print("[Error] MQTT - No response received. Access denied.")
+                        ui.show_message("ERROR\nNo response from server.", "red")
                         AF.play_error_message()
                 else:
                     print("[Access Denied] Wake word not recognised. Please try again.")
+                    ui.show_message("ACCESS DENIED\nWake word not recognised.", "red")
                     AF.play_denied_message()
             else:
                 print("[Access Denied] Face not recognised. Please try again.")
+                ui.show_message("ACCESS DENIED\nFace not recognised.", "red")
                 AF.play_denied_message()
         else:
             print("Main - No object detected within 100 cm. Skipping recognition cycle.")
+            ui.hide_ui()
 
         time.sleep(2)
+
 
 if __name__ == "__main__":
     main()
