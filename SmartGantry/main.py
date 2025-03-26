@@ -42,11 +42,11 @@ def on_message(client, userdata, msg):
     except json.JSONDecodeError:
         print("[MQTT] Error decoding JSON")
 
-client = mqtt.Client()
-client.on_message = on_message
-client.connect(BROKER, PORT, KEEPALIVE)
-client.subscribe(MQTT_TOPIC_RESPONSE)
-client.loop_start()
+# client = mqtt.Client()
+# client.on_message = on_message
+# client.connect(BROKER, PORT, KEEPALIVE)
+# client.subscribe(MQTT_TOPIC_RESPONSE)
+# client.loop_start()
 
 def main():
     global response_payload
@@ -79,7 +79,7 @@ def main():
                         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
                     }
 
-                    client.publish(MQTT_TOPIC_REQUEST, json.dumps(request_payload))
+                    # client.publish(MQTT_TOPIC_REQUEST, json.dumps(request_payload))
 
                     timeout = time.time() + 5
                     while time.time() < timeout and response_payload is None:
