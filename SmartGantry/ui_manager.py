@@ -1,6 +1,6 @@
 import os
-import tkinter as tk
 import subprocess
+import tkinter as tk
 
 class UIManager:
     def __init__(self):
@@ -19,22 +19,40 @@ class UIManager:
             justify="center"
         )
         self.label.pack(expand=True)
+
         self.display_env = os.environ.get("DISPLAY", ":0")
+        self.blank = False
         self.hide_ui()
 
     def show_message(self, message, colour="white"):
-        self.label.config(text=message, fg=colour)
+        self.label.config(text=message, fg=colour, bg="black")
+        self.root.configure(bg="black")
         self.show_ui()
         self.root.update()
 
     def show_ui(self):
-        subprocess.run(["xset", "s", "reset"], env={"DISPLAY": self.display_env})
-        self.root.deiconify()
+        if self.blank:
+            try:
+                subprocess.run(["xset", "dpms", "force", "on"], env={"DISPLAY": self.display_env}, check=False)
+            except Exception as e:
+                print(f"[UI] Warning: xset on failed: {e}")
+            self.root.deiconify()
+            self.blank = False
         self.root.update()
 
     def hide_ui(self):
-        subprocess.run(["xset", "s", "activate"], env={"DISPLAY": self.display_env})
-        self.root.withdraw()
+        # Visually blank the UI
+        self.label.config(text="", fg="black", bg="black")
+        self.root.configure(bg="black")
+        self.root.deiconify()
+        self.root.update()
+        self.blank = True
+
+        # Try to power off display
+        try:
+            subprocess.run(["xset", "dpms", "force", "off"], env={"DISPLAY": self.display_env}, check=False)
+        except Exception as e:
+            print(f"[UI] Warning: xset off failed: {e}")
 
     def run(self):
         self.root.mainloop()
