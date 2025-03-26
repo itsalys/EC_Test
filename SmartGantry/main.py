@@ -48,6 +48,9 @@ client.connect(BROKER, PORT, KEEPALIVE)
 client.subscribe(MQTT_TOPIC_RESPONSE)
 client.loop_start()
 
+def main():
+    global response_payload
+
     while True:
         distance = UD.measure_distance()
         print(f"Main - Measured Distance: {distance} cm")
