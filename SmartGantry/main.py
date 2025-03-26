@@ -56,6 +56,10 @@ def main():
         print(f"Main - Measured Distance: {distance} cm")
 
         if UD.is_object_in_range(distance, threshold=100):
+            if not screen_on:
+                ui.show_ui()
+                screen_on = True
+
             print("Main - Object detected within 100 cm. Starting facial recognition...")
             ui.show_message("Please look at the camera for verification...", "yellow")
 
@@ -124,9 +128,12 @@ def main():
                 AF.play_denied_message()
         else:
             print("Main - No object detected within 100 cm. Skipping recognition cycle.")
-            ui.hide_ui()
+            if screen_on:
+                ui.hide_ui()
+                screen_on = False
 
         time.sleep(2)
+
 
 
 if __name__ == "__main__":
