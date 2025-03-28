@@ -12,8 +12,7 @@ def restart_service(service_name):
         subprocess.run(["sudo", "systemctl", "restart", service_name], check=True)
         print(f"✅ Service '{service_name}' restarted successfully.")
     except subprocess.CalledProcessError as e:
-        print(f" Failed to restart service '{service_name}':", e)
-
+        print(f"Failed to restart service '{service_name}':", e)
 
 # === Load config.json ===
 CONFIG_FILE = "config.json"
@@ -114,10 +113,11 @@ def handle_mode_update(payload):
         with open(config_path, "w") as f:
             json.dump(config, f, indent=4)
 
+        restart_service("smartgantry.service")
+        
         MODE = mode
         print(f"Device mode updated to: {MODE}")
 
-        # restart_service("face-recognition.service")
         client.publish(response_topic, json.dumps({"status": "success", "message": f"Mode changed to {mode}"}))
     except Exception as e:
         print(f"Failed to update mode: {e}")
