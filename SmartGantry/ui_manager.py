@@ -51,9 +51,26 @@ class UIManager:
         if self.blank:
             if self.hdmi_connected:
                 try:
-                    subprocess.run(["vcgencmd", "display_power", "1"], check=False)
+                    path_check = subprocess.run(["which", "vcgencmd"], capture_output=True, text=True)
+                    vcgencmd_path = path_check.stdout.strip()
+
+                    if not vcgencmd_path:
+                        print("[UI] Error: 'vcgencmd' not found in PATH.")
+                        return
+
+                    result = subprocess.run(
+                        [vcgencmd_path, "display_power", "1"],
+                        capture_output=True,
+                        text=True,
+                        check=True
+                    )
+                    print(f"[UI] vcgencmd output: {result.stdout.strip()}")
+
+                except subprocess.CalledProcessError as e:
+                    print(f"[UI] vcgencmd failed: {e.stderr.strip()}")
                 except Exception as e:
-                    print(f"[UI] Warning: vcgencmd display_power 1 failed: {e}")
+                    print(f"[UI] Unexpected error during display power on: {e}")
+
             self.root.deiconify()
             self.blank = False
         self.root.update()
@@ -69,9 +86,27 @@ class UIManager:
         # Try to power off HDMI if connected
         if self.hdmi_connected:
             try:
-                subprocess.run(["vcgencmd", "display_power", "0"], check=False)
+                # Dynamically locate vcgencmd
+                path_check = subprocess.run(["which", "vcgencmd"], capture_output=True, text=True)
+                vcgencmd_path = path_check.stdout.strip()
+
+                if not vcgencmd_path:
+                    print("[UI] Error: 'vcgencmd' not found in PATH.")
+                    return
+
+                result = subprocess.run(
+                    [vcgencmd_path, "display_power", "0"],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                print(f"[UI] vcgencmd output: {result.stdout.strip()}")
+
+            except subprocess.CalledProcessError as e:
+                print(f"[UI] vcgencmd failed: {e.stderr.strip()}")
             except Exception as e:
-                print(f"[UI] Warning: vcgencmd display_power 0 failed: {e}")
+                print(f"[UI] Unexpected error during display power off: {e}")
+
 
     def run(self):
         self.root.mainloop()
