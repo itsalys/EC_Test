@@ -1,6 +1,7 @@
 import os
 import subprocess
 import tkinter as tk
+import time
 
 class UIManager:
     def __init__(self):
@@ -24,6 +25,15 @@ class UIManager:
         self.blank = False
         self.hdmi_connected = self.detect_hdmi()
         self.hide_ui()
+
+    def get_hdmi_status_path(self):
+        drm_dir = "/sys/class/drm/"
+        for entry in os.listdir(drm_dir):
+            if "HDMI" in entry:
+                status_path = os.path.join(drm_dir, entry, "status")
+                return status_path
+        return None
+
 
     def detect_hdmi(self):
         try:
@@ -81,18 +91,24 @@ class UIManager:
                         print("[UI] Error: 'vcgencmd' not found in PATH.")
                         return
 
-                    result = subprocess.run(
-                        [vcgencmd_path, "display_power", "1"],
-                        capture_output=True,
-                        text=True,
-                        check=True
-                    )
-                    print(f"[UI] vcgencmd output: {result.stdout.strip()}")
+                    print("[UI] Powering on HDMI display...")
+                    subprocess.run([vcgencmd_path, "display_power", "1"], check=True)
 
-                except subprocess.CalledProcessError as e:
-                    print(f"[UI] vcgencmd failed: {e.stderr.strip()}")
+                    # Wait for screen to become active
+                    status_path = self.get_hdmi_status_path()
+                    for i in range(10):  # 10 × 0.5s = 5s max wait
+                        if status_path and os.path.isfile(status_path):
+                            with open(status_path, "r") as f:
+                                state = f.read().strip()
+                                if state == "connected":
+                                    print("[UI] HDMI display is ready.")
+                                    break
+                        time.sleep(0.5)
+                    else:
+                        print("[UI] Warning: HDMI display did not come online in time.")
+
                 except Exception as e:
-                    print(f"[UI] Unexpected error during display power on: {e}")
+                    print(f"[UI] Error while turning on HDMI: {e}")
 
             self.root.deiconify()
             self.blank = False
