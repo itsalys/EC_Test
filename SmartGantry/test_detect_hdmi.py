@@ -49,4 +49,4 @@ def get_hdmi_status_path():
 
 if __name__ == "__main__":
     detect_hdmi()
-    get_hdmi_status_path()
+    print(get_hdmi_status_path())
