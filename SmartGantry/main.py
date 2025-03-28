@@ -63,6 +63,7 @@ def main():
 
             print("Main - Object detected within 100 cm. Starting facial recognition...")
             ui.show_message("Please look at the camera for verification...", "white")
+            time.sleep(2)
 
             result = FR.facialRecognition()
 
