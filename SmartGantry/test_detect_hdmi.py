@@ -38,7 +38,7 @@ def detect_hdmi():
         print(f"[ERROR] HDMI detection failed: {e}")
         return False
     
-def get_hdmi_status_path(self):
+def get_hdmi_status_path():
     drm_dir = "/sys/class/drm/"
     for entry in os.listdir(drm_dir):
         if "HDMI" in entry:
