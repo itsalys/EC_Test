@@ -70,7 +70,7 @@ def main():
                 wake_word = result["name"]
                 user_id = result["id"]
                 print(f"Main - User recognized: {wake_word} (ID: {user_id}). Initiating speech recognition...")
-                ui.show_message(f"Hello {wake_word}, please say your wake word...", "white")
+                ui.show_message(f"Welcome back, {wake_word}.\nPlease provide voice confirmation....", "white")
 
                 speech_detected = SR.speechRecognition(wake_word)
 

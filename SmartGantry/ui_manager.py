@@ -22,7 +22,24 @@ class UIManager:
 
         self.display_env = os.environ.get("DISPLAY", ":0")
         self.blank = False
+        self.hdmi_connected = self.detect_hdmi()
         self.hide_ui()
+
+    def detect_hdmi(self):
+        try:
+            drm_dir = "/sys/class/drm/"
+            for root, dirs, files in os.walk(drm_dir):
+                for name in files:
+                    if name == "status" and "HDMI" in root:
+                        with open(os.path.join(root, name), "r") as f:
+                            if f.read().strip() == "connected":
+                                print(f"[UI] HDMI connected at {root}")
+                                return True
+            print("[UI] No HDMI connection found in DRM paths.")
+            return False
+        except Exception as e:
+            print(f"[UI] HDMI detection failed: {e}")
+            return False
 
     def show_message(self, message, colour="white"):
         self.label.config(text=message, fg=colour, bg="black")
@@ -32,10 +49,11 @@ class UIManager:
 
     def show_ui(self):
         if self.blank:
-            try:
-                subprocess.run(["xset", "dpms", "force", "on"], env={"DISPLAY": self.display_env}, check=False)
-            except Exception as e:
-                print(f"[UI] Warning: xset on failed: {e}")
+            if self.hdmi_connected:
+                try:
+                    subprocess.run(["vcgencmd", "display_power", "1"], check=False)
+                except Exception as e:
+                    print(f"[UI] Warning: vcgencmd display_power 1 failed: {e}")
             self.root.deiconify()
             self.blank = False
         self.root.update()
@@ -48,11 +66,12 @@ class UIManager:
         self.root.update()
         self.blank = True
 
-        # Try to power off display
-        try:
-            subprocess.run(["xset", "dpms", "force", "off"], env={"DISPLAY": self.display_env}, check=False)
-        except Exception as e:
-            print(f"[UI] Warning: xset off failed: {e}")
+        # Try to power off HDMI if connected
+        if self.hdmi_connected:
+            try:
+                subprocess.run(["vcgencmd", "display_power", "0"], check=False)
+            except Exception as e:
+                print(f"[UI] Warning: vcgencmd display_power 0 failed: {e}")
 
     def run(self):
         self.root.mainloop()
