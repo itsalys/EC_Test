@@ -25,21 +25,44 @@ class UIManager:
         self.hdmi_connected = self.detect_hdmi()
         self.hide_ui()
 
-    def detect_hdmi(self):
+    def detect_hdmi():
         try:
             drm_dir = "/sys/class/drm/"
-            for root, dirs, files in os.walk(drm_dir):
-                for name in files:
-                    if name == "status" and "HDMI" in root:
-                        with open(os.path.join(root, name), "r") as f:
-                            if f.read().strip() == "connected":
-                                print(f"[UI] HDMI connected at {root}")
-                                return True
-            print("[UI] No HDMI connection found in DRM paths.")
+            found_any = False
+
+            print(f"[DEBUG] Walking through {drm_dir}...\n")
+
+            for entry in os.listdir(drm_dir):
+                full_path = os.path.join(drm_dir, entry)
+                if not os.path.isdir(full_path):
+                    continue
+
+                # Follow symlinks manually
+                if "HDMI" in entry:
+                    status_path = os.path.join(full_path, "status")
+                    print(f"[DEBUG] Checking: {status_path}")
+                    if os.path.isfile(status_path):
+                        try:
+                            with open(status_path, "r") as f:
+                                status = f.read().strip()
+                                print(f"[INFO] {status_path}: {status}")
+                                if status == "connected":
+                                    print("[RESULT] HDMI is connected.")
+                                    return True
+                        except Exception as e:
+                            print(f"[ERROR] Could not read {status_path}: {e}")
+                        found_any = True
+
+            if not found_any:
+                print("[INFO] No HDMI entries found in DRM paths.")
+            else:
+                print("[RESULT] No HDMI display is connected.")
             return False
+
         except Exception as e:
-            print(f"[UI] HDMI detection failed: {e}")
+            print(f"[ERROR] HDMI detection failed: {e}")
             return False
+
 
     def show_message(self, message, colour="white"):
         self.label.config(text=message, fg=colour, bg="black")
