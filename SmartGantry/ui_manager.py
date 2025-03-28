@@ -91,28 +91,21 @@ class UIManager:
                         print("[UI] Error: 'vcgencmd' not found in PATH.")
                         return
 
-                    print("[UI] Powering on HDMI display...")
+                    print("[UI] Turning on HDMI display...")
                     subprocess.run([vcgencmd_path, "display_power", "1"], check=True)
 
-                    # Wait for screen to become active
-                    status_path = self.get_hdmi_status_path()
-                    for i in range(10):  # 10 × 0.5s = 5s max wait
-                        if status_path and os.path.isfile(status_path):
-                            with open(status_path, "r") as f:
-                                state = f.read().strip()
-                                if state == "connected":
-                                    print("[UI] HDMI display is ready.")
-                                    break
-                        time.sleep(0.5)
-                    else:
-                        print("[UI] Warning: HDMI display did not come online in time.")
+                    # Fixed 1 second wait to allow screen to power on
+                    time.sleep(1)
 
+                except subprocess.CalledProcessError as e:
+                    print(f"[UI] vcgencmd failed: {e.stderr.strip()}")
                 except Exception as e:
-                    print(f"[UI] Error while turning on HDMI: {e}")
+                    print(f"[UI] Unexpected error during display power on: {e}")
 
             self.root.deiconify()
             self.blank = False
         self.root.update()
+
 
     def hide_ui(self):
         # Visually blank the UI
