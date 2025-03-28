@@ -95,7 +95,7 @@ class UIManager:
                     subprocess.run([vcgencmd_path, "display_power", "1"], check=True)
 
                     # Fixed 1 second wait to allow screen to power on
-                    time.sleep(1)
+                    time.sleep(2)
 
                 except subprocess.CalledProcessError as e:
                     print(f"[UI] vcgencmd failed: {e.stderr.strip()}")
