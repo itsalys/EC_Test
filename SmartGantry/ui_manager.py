@@ -13,7 +13,7 @@ class UIManager:
         self.label = tk.Label(
             self.root,
             text="",
-            font=("Helvetica", 48, "bold"),
+            font=("Helvetica", 32, "bold"),
             fg="white",
             bg="black",
             wraplength=1800,
