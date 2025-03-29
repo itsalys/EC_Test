@@ -1,33 +1,33 @@
 #!/bin/bash
 
-SERVICE_NAME="webserver.service"
+# ========== CONFIGURATION ==========
+PID=1161                # 🔧 Specify your target PID here
 DURATION=120           # Total time to monitor (in seconds)
 INTERVAL=1             # Sampling interval for pidstat (seconds)
 COUNTDOWN=5            # Delay before starting
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
 # Output files
-PERF_FILE="webserver_perf_stats_${TIMESTAMP}.log"
-PIDSTAT_FILE="webserver_pidstat_log_${TIMESTAMP}.csv"
+PERF_FILE="pid_${PID}_perf_stats_${TIMESTAMP}.log"
+PIDSTAT_FILE="pid_${PID}_pidstat_log_${TIMESTAMP}.csv"
 
-# Get PID
-PID=$(systemctl show -p MainPID "$SERVICE_NAME" | cut -d= -f2)
+# ========== VALIDATION ==========
 
-if [ "$PID" -eq "0" ]; then
-  echo "❌ Error: Service '$SERVICE_NAME' is not running."
+if ! ps -p "$PID" > /dev/null; then
+  echo "❌ Error: PID $PID is not running."
   exit 1
 fi
 
-# Countdown before starting
+# ========== COUNTDOWN ==========
 echo "⏳ Starting in $COUNTDOWN seconds..."
 for i in $(seq $COUNTDOWN -1 1); do
   echo "$i..."
   sleep 1
 done
 
-echo "🟢 Monitoring PID $PID of $SERVICE_NAME for $DURATION seconds..."
+echo "🟢 Monitoring PID $PID for $DURATION seconds..."
 
-# Start pidstat (records every INTERVAL seconds)
+# ========== PIDSTAT ==========
 echo "Time,CPU (%),Memory (KB)" > "$PIDSTAT_FILE"
 (
   END=$((SECONDS + DURATION))
@@ -38,7 +38,7 @@ echo "Time,CPU (%),Memory (KB)" > "$PIDSTAT_FILE"
   done
 ) &
 
-# Start perf stat (runs for full duration)
+# ========== PERF ==========
 sudo perf stat \
   -e cycles,instructions,cache-references,cache-misses,branch-misses,context-switches,cpu-migrations,page-faults \
   -p $PID \
