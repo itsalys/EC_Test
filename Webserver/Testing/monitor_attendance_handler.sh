@@ -1,14 +1,14 @@
 #!/bin/bash
 
-SERVICE_NAME="webserver.service"
+SERVICE_NAME="attendance-handler.service"
 DURATION=120           # Total time to monitor (in seconds)
 INTERVAL=1             # Sampling interval for pidstat (seconds)
-COUNTDOWN=5            # Delay before starting
+COUNTDOWN=5            # Countdown before start
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
 # Output files
-PERF_FILE="webserver_perf_stats_${TIMESTAMP}.log"
-PIDSTAT_FILE="webserver_pidstat_log_${TIMESTAMP}.csv"
+PERF_FILE="attendance-handler_perf_stats_${TIMESTAMP}.log"
+PIDSTAT_FILE="attendance-handler_pidstat_log_${TIMESTAMP}.csv"
 
 # Get PID
 PID=$(systemctl show -p MainPID "$SERVICE_NAME" | cut -d= -f2)
@@ -18,7 +18,7 @@ if [ "$PID" -eq "0" ]; then
   exit 1
 fi
 
-# Countdown before starting
+# Countdown before monitoring
 echo "⏳ Starting in $COUNTDOWN seconds..."
 for i in $(seq $COUNTDOWN -1 1); do
   echo "$i..."
