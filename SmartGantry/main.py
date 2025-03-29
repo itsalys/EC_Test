@@ -97,7 +97,12 @@ def main():
                         if status == "success":
                             msg = f"[Access Granted] {ACTION.replace('_', ' ').capitalize()} confirmed."
                             print(msg)
-                            ui.show_message("ACCESS GRANTED\nWelcome!", "green")
+                            if MODE == "entry":
+                                ui.show_message("ACCESS GRANTED\nWelcome!", "green")
+                            else:
+                                ui.show_message("ACCESS GRANTED\nGoodbye!", "green")
+                            AF.play_success_message()
+
                             AF.play_success_message()
 
                         elif status == "denied":
