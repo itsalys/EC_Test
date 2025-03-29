@@ -65,6 +65,8 @@ def handle_add_employee(payload):
         if os.path.exists(img_path):
             os.remove(img_path)
             print(f"Deleted temp image: {img_path}")
+        
+        restart_service("smartgantry.service")
 
 def handle_device_info_request(payload):
     try:
