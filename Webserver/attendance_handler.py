@@ -2,7 +2,7 @@ import os
 import json
 import pymysql
 import paho.mqtt.client as mqtt
-from datetime import datetime, timedelta
+from datetime import datetime
 from dotenv import load_dotenv
 
 # === Load Environment Variables ===
@@ -44,13 +44,15 @@ def on_message(client, userdata, msg):
 def handle_attendance(device_id, action, payload):
     employee_id = payload.get("employee_id")
     timestamp = payload.get("timestamp")
-    timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=8)
 
     if not all([employee_id, action, timestamp]):
         send_response(device_id, action, "error", "Incomplete request payload.")
         return
 
     try:
+        # Convert timestamp and add +8 hours (Singapore time)
+        parsed_timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=8)
+
         conn = get_db_connection()
         with conn.cursor() as cursor:
             cursor.execute("""
@@ -69,7 +71,7 @@ def handle_attendance(device_id, action, payload):
                     cursor.execute("""
                         INSERT INTO attendance (employee_id, timestamp, clocked_in)
                         VALUES (%s, %s, 1);
-                    """, (employee_id, timestamp))
+                    """, (employee_id, parsed_timestamp))  # ✅ use adjusted timestamp
                     conn.commit()
                 send_response(device_id, action, "success", "Clock-in confirmed.")
 
@@ -83,16 +85,16 @@ def handle_attendance(device_id, action, payload):
                     cursor.execute("""
                         INSERT INTO attendance (employee_id, timestamp, clocked_in)
                         VALUES (%s, %s, 0);
-                    """, (employee_id, timestamp))
+                    """, (employee_id, parsed_timestamp))  # ✅ use adjusted timestamp
                     conn.commit()
                 send_response(device_id, action, "success", "Clock-out confirmed.")
-                
+
         else:
             send_response(device_id, action, "error", f"Unsupported action: {action}")
     except Exception as e:
         print(f"[ERROR] {e}")
         send_response(device_id, action, "error", "Internal server error.")
-
+        
 def send_response(device_id, action, status, message):
     topic = f"smartgantry/{device_id}/{action}_response"
     payload = {
