@@ -44,6 +44,7 @@ def on_message(client, userdata, msg):
 def handle_attendance(device_id, action, payload):
     employee_id = payload.get("employee_id")
     timestamp = payload.get("timestamp")
+    timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=8)
 
     if not all([employee_id, action, timestamp]):
         send_response(device_id, action, "error", "Incomplete request payload.")
@@ -68,7 +69,7 @@ def handle_attendance(device_id, action, payload):
                     cursor.execute("""
                         INSERT INTO attendance (employee_id, timestamp, clocked_in)
                         VALUES (%s, %s, 1);
-                    """, (employee_id, datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=8)))
+                    """, (employee_id, timestamp))
                     conn.commit()
                 send_response(device_id, action, "success", "Clock-in confirmed.")
 
@@ -82,7 +83,7 @@ def handle_attendance(device_id, action, payload):
                     cursor.execute("""
                         INSERT INTO attendance (employee_id, timestamp, clocked_in)
                         VALUES (%s, %s, 0);
-                    """, (employee_id, datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=8)))
+                    """, (employee_id, timestamp))
                     conn.commit()
                 send_response(device_id, action, "success", "Clock-out confirmed.")
                 
