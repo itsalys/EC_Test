@@ -2,7 +2,7 @@ import os
 import json
 import pymysql
 import paho.mqtt.client as mqtt
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 # === Load Environment Variables ===
@@ -68,7 +68,7 @@ def handle_attendance(device_id, action, payload):
                     cursor.execute("""
                         INSERT INTO attendance (employee_id, timestamp, clocked_in)
                         VALUES (%s, %s, 1);
-                    """, (employee_id, datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")))
+                    """, (employee_id, datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=8)))
                     conn.commit()
                 send_response(device_id, action, "success", "Clock-in confirmed.")
 
@@ -82,7 +82,7 @@ def handle_attendance(device_id, action, payload):
                     cursor.execute("""
                         INSERT INTO attendance (employee_id, timestamp, clocked_in)
                         VALUES (%s, %s, 0);
-                    """, (employee_id, datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")))
+                    """, (employee_id, datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=8)))
                     conn.commit()
                 send_response(device_id, action, "success", "Clock-out confirmed.")
                 
