@@ -2,9 +2,9 @@
 
 # ===== CONFIGURATION =====
 PID=1195                 # 🔧 Set your target PID here
-DURATION=120             # Total time to monitor (in seconds)
+DURATION=60              # Total monitoring time (in seconds)
 INTERVAL=1               # Sampling interval for pidstat
-COUNTDOWN=5              # Delay before starting
+COUNTDOWN=5              # Countdown before starting
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
 # ===== OUTPUT FILES =====
@@ -24,20 +24,24 @@ for i in $(seq $COUNTDOWN -1 1); do
   sleep 1
 done
 
-# ===== PIDSTAT (CPU & MEM Logging) =====
+echo "🟢 Monitoring PID $PID for $DURATION seconds..."
+
+# ===== START LOGGING =====
+# 1. Header for CSV
 echo "Time,%CPU,%MEM" > "$PIDSTAT_FILE"
 
+# 2. pidstat logging (CPU and MEM)
 pidstat -p $PID -u -r -h $INTERVAL $((DURATION / INTERVAL)) | \
-awk '
-  NF > 12 && $1 ~ /^[0-9]+$/ {
+awk -v pid="$PID" '
+  $0 ~ /^[0-9]/ && $4 == pid {
     cmd = "date +\"%Y-%m-%d %H:%M:%S\""
     cmd | getline timestamp
     close(cmd)
-    print timestamp "," $8 "," $13
+    print timestamp "," $9 "," $14
   }
 ' >> "$PIDSTAT_FILE" &
 
-# ===== PERF STATS =====
+# 3. perf stat run
 sudo perf stat \
   -e cycles,instructions,cache-references,cache-misses,branch-misses,context-switches,cpu-migrations,page-faults \
   -p $PID \
@@ -47,4 +51,4 @@ sudo perf stat \
 # ===== DONE =====
 echo "✅ Monitoring complete."
 echo "📄 CPU/MEM saved to: $PIDSTAT_FILE"
-echo "📄 perf stats saved to: $PERF_FILE"
+echo "📄 Perf stats saved to: $PERF_FILE"
