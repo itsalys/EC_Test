@@ -3,6 +3,10 @@ import json
 import pymysql
 import paho.mqtt.client as mqtt
 from datetime import datetime
+from datetime import timezone
+from datetime import timedelta
+import pytz  # ? Add this
+
 from dotenv import load_dotenv
 
 # === Load Environment Variables ===
@@ -50,8 +54,9 @@ def handle_attendance(device_id, action, payload):
         return
 
     try:
-        # Convert timestamp and add +8 hours (Singapore time)
-        parsed_timestamp = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ") + timedelta(hours=8)
+        utc_dt = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        sg_time = utc_dt.astimezone(pytz.timezone("Asia/Singapore"))
+        parsed_timestamp = sg_time
 
         conn = get_db_connection()
         with conn.cursor() as cursor:
@@ -94,7 +99,7 @@ def handle_attendance(device_id, action, payload):
     except Exception as e:
         print(f"[ERROR] {e}")
         send_response(device_id, action, "error", "Internal server error.")
-        
+
 def send_response(device_id, action, status, message):
     topic = f"smartgantry/{device_id}/{action}_response"
     payload = {
