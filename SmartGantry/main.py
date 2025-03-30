@@ -126,8 +126,8 @@ def main():
                         ui.show_message("ERROR\nNo response from server.", "red")
                         AF.play_error_message()
                 else:
-                    print("[Access Denied] Wake word not recognised. Please try again.")
-                    ui.show_message("ACCESS DENIED\nWake word not recognised.", "red")
+                    print("[Access Denied] Password not recognised. Please try again.")
+                    ui.show_message("ACCESS DENIED\nPassword not recognised.", "red")
                     AF.play_denied_message()
             else:
                 print("[Access Denied] Face not recognised. Please try again.")
